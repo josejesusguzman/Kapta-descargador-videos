@@ -194,7 +194,7 @@ async function main() {
     return
   }
 
-  const tmp = path.join(os.tmpdir(), `descargador-bin-${randomBytes(4).toString('hex')}`)
+  const tmp = path.join(os.tmpdir(), `kapta-descargador-bin-${randomBytes(4).toString('hex')}`)
   mkdirSync(tmp, { recursive: true })
   rmSync(outDir, { recursive: true, force: true })
   mkdirSync(outDir, { recursive: true })

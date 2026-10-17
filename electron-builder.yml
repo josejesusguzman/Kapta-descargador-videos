@@ -1,6 +1,6 @@
-appId: com.descargador.app
-productName: Descargador
-copyright: Copyright © 2026 Descargador
+appId: com.kapta.descargador
+productName: Kapta Descargador
+copyright: Copyright © 2026 Kapta Descargador
 
 directories:
   output: dist
@@ -29,7 +29,7 @@ win:
   target:
     - target: nsis
   icon: build/icon.ico
-  executableName: Descargador
+  executableName: Kapta Descargador
 
 # Instalador por usuario: no pide permisos de administrador.
 nsis:
@@ -39,10 +39,10 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: Descargador
-  uninstallDisplayName: Descargador
+  shortcutName: Kapta Descargador
+  uninstallDisplayName: Kapta Descargador
   language: '3082'
-  artifactName: Windows-${productName}-Setup-${version}-${arch}.${ext}
+  artifactName: Windows-Kapta-Descargador-Setup-${version}-${arch}.${ext}
   deleteAppDataOnUninstall: false
 
 # macOS: un DMG por arquitectura (Apple Silicon e Intel), compilado con el SDK del runner más reciente
@@ -66,11 +66,11 @@ mac:
   signIgnore:
     - 'Resources/bin/yt-dlp$'
   notarize: false
-  artifactName: macOS-${productName}-${version}-${arch}.${ext}
+  artifactName: macOS-Kapta-Descargador-${version}-${arch}.${ext}
 
 dmg:
   title: ${productName} ${version}
-  artifactName: macOS-${productName}-${version}-${arch}.${ext}
+  artifactName: macOS-Kapta-Descargador-${version}-${arch}.${ext}
   contents:
     - x: 140
       y: 190
@@ -87,11 +87,11 @@ linux:
     - target: rpm
   icon: build/icon.png
   category: AudioVideo
-  executableName: descargador
+  executableName: kapta-descargador
   # Usa desktopName de package.json para el .desktop y el WM_CLASS: así el dock asocia la ventana al lanzador.
   syncDesktopName: true
   synopsis: Descarga video y audio para edición
   description: Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.
   # .deb y .rpm exigen un responsable con email.
   maintainer: josejesusguzman <8755301+josejesusguzman@users.noreply.github.com>
-  artifactName: Linux-${productName}-${version}-${arch}.${ext}
+  artifactName: Linux-Kapta-Descargador-${version}-${arch}.${ext}

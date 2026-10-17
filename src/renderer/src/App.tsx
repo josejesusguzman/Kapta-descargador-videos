@@ -183,7 +183,7 @@ export default function App() {
         className={`drag-region flex h-11 shrink-0 items-center gap-2.5 ${api.platform === 'darwin' ? 'pl-[84px] pr-4' : 'pl-4 pr-[150px]'}`}
       >
         <Logo size={20} />
-        <span className="font-display text-[14px] font-semibold tracking-tight">Descargador</span>
+        <span className="font-display text-[14px] font-semibold tracking-tight">Kapta Descargador</span>
         <div className="flex-1" />
         <button
           onClick={() => void api.openOutputDir()}

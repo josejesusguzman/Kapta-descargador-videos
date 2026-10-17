@@ -1,8 +1,8 @@
-import type { DescargadorApi } from '@shared/types'
+import type { KaptaDescargadorApi } from '@shared/types'
 
 declare global {
   interface Window {
-    api: DescargadorApi
+    api: KaptaDescargadorApi
   }
 }
 

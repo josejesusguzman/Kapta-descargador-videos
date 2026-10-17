@@ -100,7 +100,7 @@ export interface EngineUpdateResult {
 }
 
 /** API expuesta al renderer por el preload (window.api). */
-export interface DescargadorApi {
+export interface KaptaDescargadorApi {
   /** Sistema operativo (process.platform): 'win32', 'darwin'… */
   platform: string
   analyze(url: string): Promise<MediaInfo>

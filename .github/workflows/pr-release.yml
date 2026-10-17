@@ -41,7 +41,7 @@ jobs:
         id: tag
         shell: bash
         run: |
-          marker="<!-- descargador-pr: $PR -->"
+          marker="<!-- kapta-descargador-pr: $PR -->"
 
           # Siguiente número: el tag numérico más alto (0.1, 0.10, v2…) + 1 en su último componente. Por stdin
           # recibe los números ya intentados en esta corrida, para que cada reintento avance.
@@ -140,7 +140,7 @@ jobs:
       # Todos los artefactos en una sola carpeta, ya descomprimidos: se suben los instaladores tal cual.
       - uses: actions/download-artifact@v4
         with:
-          pattern: Descargador-*
+          pattern: Kapta-Descargador-*
           path: installers
           merge-multiple: true
 
@@ -207,7 +207,7 @@ jobs:
             esac
           }
           {
-            echo "<!-- descargador-pr: $PR -->"
+            echo "<!-- kapta-descargador-pr: $PR -->"
             echo "Instaladores del PR #$PR ($TITLE), commit ${SHA:0:7}. Se reemplazan con cada push al PR."
             echo
             echo "| Equipo | Instalador |"
