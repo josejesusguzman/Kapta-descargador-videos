@@ -98,7 +98,7 @@ export default function App() {
     return () => window.removeEventListener('focus', check)
   }, [])
 
-  // Ctrl+V en cualquier parte de la ventana pega el link y lo busca.
+  // Ctrl+V (⌘V en Mac) en cualquier parte de la ventana pega el link y lo busca.
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement | null
@@ -169,8 +169,11 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Barra de título propia; los botones de ventana los dibuja Windows (titleBarOverlay). */}
-      <header className="drag-region flex h-11 shrink-0 items-center gap-2.5 pl-4 pr-[150px]">
+      {/* Barra de título propia; los botones de ventana los dibuja el sistema (titleBarOverlay en Windows,
+          semáforos a la izquierda en macOS). */}
+      <header
+        className={`drag-region flex h-11 shrink-0 items-center gap-2.5 ${api.platform === 'darwin' ? 'pl-[84px] pr-4' : 'pl-4 pr-[150px]'}`}
+      >
         <Logo size={20} />
         <span className="font-display text-[14px] font-semibold tracking-tight">Descargador</span>
         <div className="flex-1" />

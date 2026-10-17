@@ -17,6 +17,7 @@ function subscribe<T extends unknown[]>(channel: string, cb: (...args: T) => voi
 }
 
 const api: DescargadorApi = {
+  platform: process.platform,
   analyze: (url) => call('media:analyze', url),
   addJob: (request) => call('jobs:add', request),
   cancelJob: (id) => call('jobs:cancel', id),

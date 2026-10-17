@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Genera los íconos de la app sin dependencias: dibuja el logo (cuadro con degradado + flecha de descarga)
 // con antialiasing por SDF y escribe PNG e ICO.
-//   build/icon.ico            -> ejecutable e instalador
+//   build/icon.ico            -> ejecutable e instalador de Windows
+//   build/icon.png            -> ícono de macOS (1024 px con el margen de la plantilla de Apple; electron-builder genera el .icns)
 //   resources/icons/icon.png  -> ventana y notificaciones
 //   resources/icons/drag.png  -> ícono al arrastrar un archivo
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -145,7 +146,7 @@ const images = icoSizes.map((size) => ({ size, data: png(size, render(size)) }))
 mkdirSync(path.join(root, 'build'), { recursive: true })
 mkdirSync(path.join(root, 'resources', 'icons'), { recursive: true })
 writeFileSync(path.join(root, 'build', 'icon.ico'), ico(images))
-writeFileSync(path.join(root, 'build', 'icon.png'), png(512, render(512)))
+writeFileSync(path.join(root, 'build', 'icon.png'), png(1024, render(1024, { margin: 3.2 })))
 writeFileSync(path.join(root, 'resources', 'icons', 'icon.png'), png(256, render(256)))
 writeFileSync(path.join(root, 'resources', 'icons', 'drag.png'), png(64, render(64, { margin: 2 })))
 console.log('✓ Íconos generados: build/icon.ico, build/icon.png, resources/icons/{icon,drag}.png')

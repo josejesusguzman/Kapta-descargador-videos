@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-// Descarga yt-dlp y FFmpeg (ffmpeg + ffprobe + DLLs) desde sus releases oficiales,
-// verifica su SHA-256 y los deja en resources/bin/<arch>/.
+// Descarga yt-dlp y FFmpeg (ffmpeg + ffprobe, y en Windows sus DLLs) desde sus releases oficiales,
+// verifica su SHA-256 y los deja en resources/bin/<win|mac>-<arch>/.
 //
-//   node scripts/fetch-binaries.mjs            -> arquitectura de este equipo
-//   node scripts/fetch-binaries.mjs --arch=x64 -> forzar x64 (o arm64)
-//   node scripts/fetch-binaries.mjs --force    -> volver a descargar aunque ya existan
+//   node scripts/fetch-binaries.mjs                 -> sistema y arquitectura de este equipo
+//   node scripts/fetch-binaries.mjs --arch=x64      -> forzar x64 (o arm64)
+//   node scripts/fetch-binaries.mjs --platform=mac  -> forzar sistema (win o mac)
+//   node scripts/fetch-binaries.mjs --force         -> volver a descargar aunque ya existan
 import { createHash, randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import {
   copyFileSync,
   createReadStream,
   createWriteStream,
+  chmodSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -25,20 +27,32 @@ import extract from 'extract-zip'
 
 const args = process.argv.slice(2)
 const arch = args.find((a) => a.startsWith('--arch='))?.split('=')[1] ?? process.arch
+const platform =
+  args.find((a) => a.startsWith('--platform='))?.split('=')[1] ?? (process.platform === 'darwin' ? 'mac' : 'win')
 const force = args.includes('--force')
 
 if (!['x64', 'arm64'].includes(arch)) {
   console.error(`Arquitectura no soportada: ${arch} (usa x64 o arm64)`)
   process.exit(1)
 }
+if (!['win', 'mac'].includes(platform)) {
+  console.error(`Sistema no soportado: ${platform} (usa win o mac)`)
+  process.exit(1)
+}
 
+const isMac = platform === 'mac'
+const exe = (name) => (isMac ? name : `${name}.exe`)
 const root = path.resolve(import.meta.dirname, '..')
-const outDir = path.join(root, 'resources', 'bin', arch)
+// Mismo nombre que la macro ${os}-${arch} de electron-builder.
+const outDir = path.join(root, 'resources', 'bin', `${platform}-${arch}`)
 
 const YTDLP_BASE = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/'
-const YTDLP_ASSET = arch === 'arm64' ? 'yt-dlp_arm64.exe' : 'yt-dlp.exe'
+// En macOS, yt-dlp_macos es universal (Apple Silicon + Intel).
+const YTDLP_ASSET = isMac ? 'yt-dlp_macos' : arch === 'arm64' ? 'yt-dlp_arm64.exe' : 'yt-dlp.exe'
 const FFMPEG_BASE = 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/'
 const FFMPEG_ASSET = `ffmpeg-master-latest-${arch === 'arm64' ? 'winarm64' : 'win64'}-gpl-shared.zip`
+// macOS: compilaciones estáticas GPL de Martin Riedl (ffmpeg y ffprobe por separado, cada una con su .sha256).
+const MAC_FFMPEG_BASE = `https://ffmpeg.martin-riedl.de/redirect/latest/macos/${arch === 'arm64' ? 'arm64' : 'amd64'}/release/`
 
 async function fetchOk(url) {
   const res = await fetch(url, { redirect: 'follow' })
@@ -73,8 +87,10 @@ async function sha256(file) {
   return hash.digest('hex')
 }
 
-/** Busca el hash de `name` en un archivo de sumas ("<hash>  <archivo>" o "<hash> *<archivo>"). */
+/** Busca el hash de `name` en un archivo de sumas ("<hash>  <archivo>", "<hash> *<archivo>" o solo "<hash>"). */
 function expectedHash(sums, name) {
+  const only = sums.trim()
+  if (/^[0-9a-f]{64}$/i.test(only)) return only.toLowerCase()
   for (const line of sums.split(/\r?\n/)) {
     const [hash, file] = line.trim().split(/\s+/)
     if (file && path.basename(file.replace(/^\*/, '')) === name) return hash.toLowerCase()
@@ -92,8 +108,57 @@ async function verify(file, sumsUrl, name) {
   console.log(`   SHA-256 verificado (${actual.slice(0, 16)}…)`)
 }
 
+/** Versión de yt-dlp: ejecutándolo si se puede; si no (binario de otro sistema), por el tag del último release. */
+async function ytdlpVersionOf(file) {
+  try {
+    return execFileSync(file, ['--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    const res = await fetch('https://github.com/yt-dlp/yt-dlp/releases/latest', { redirect: 'manual' })
+    const tag = /\/tag\/([^/?#]+)/.exec(res.headers.get('location') ?? '')?.[1]
+    if (!tag) throw new Error('No se pudo determinar la versión de yt-dlp')
+    return tag
+  }
+}
+
+async function fetchWindowsFfmpeg(tmp) {
+  console.log(`→ FFmpeg (${FFMPEG_ASSET})`)
+  const ffZip = path.join(tmp, FFMPEG_ASSET)
+  await download(FFMPEG_BASE + FFMPEG_ASSET, ffZip)
+  await verify(ffZip, FFMPEG_BASE + 'checksums.sha256', FFMPEG_ASSET)
+  const ffDir = path.join(tmp, 'ffmpeg')
+  await extract(ffZip, { dir: ffDir })
+  const top = readdirSync(ffDir)[0]
+  const binDir = path.join(ffDir, top, 'bin')
+  for (const f of readdirSync(binDir)) {
+    // ffplay no hace falta; ffmpeg + ffprobe + DLLs compartidas sí.
+    if (f === 'ffmpeg.exe' || f === 'ffprobe.exe' || f.endsWith('.dll')) {
+      copyFileSync(path.join(binDir, f), path.join(outDir, f))
+    }
+  }
+  const license = path.join(ffDir, top, 'LICENSE.txt')
+  if (existsSync(license)) copyFileSync(license, path.join(outDir, 'FFMPEG_LICENSE.txt'))
+  return FFMPEG_ASSET
+}
+
+async function fetchMacFfmpeg(tmp) {
+  for (const tool of ['ffmpeg', 'ffprobe']) {
+    console.log(`→ ${tool} (macOS ${arch})`)
+    const zip = path.join(tmp, `${tool}.zip`)
+    const url = `${MAC_FFMPEG_BASE}${tool}.zip`
+    await download(url, zip)
+    await verify(zip, `${url}.sha256`, `${tool}.zip`)
+    const dir = path.join(tmp, tool)
+    await extract(zip, { dir })
+    const bin = readdirSync(dir, { recursive: true }).find((f) => path.basename(f) === tool)
+    if (!bin) throw new Error(`${tool}.zip no contiene ${tool}`)
+    copyFileSync(path.join(dir, bin), path.join(outDir, tool))
+    chmodSync(path.join(outDir, tool), 0o755)
+  }
+  return `martin-riedl-latest-macos-${arch}`
+}
+
 async function main() {
-  const ready = ['yt-dlp.exe', 'ffmpeg.exe', 'ffprobe.exe', 'versions.json'].every((f) =>
+  const ready = [exe('yt-dlp'), exe('ffmpeg'), exe('ffprobe'), 'versions.json'].every((f) =>
     existsSync(path.join(outDir, f))
   )
   if (ready && !force) {
@@ -111,31 +176,17 @@ async function main() {
     const ytTmp = path.join(tmp, YTDLP_ASSET)
     await download(YTDLP_BASE + YTDLP_ASSET, ytTmp)
     await verify(ytTmp, YTDLP_BASE + 'SHA2-256SUMS', YTDLP_ASSET)
-    const ytOut = path.join(outDir, 'yt-dlp.exe')
+    const ytOut = path.join(outDir, exe('yt-dlp'))
     copyFileSync(ytTmp, ytOut)
-    const ytdlpVersion = execFileSync(ytOut, ['--version'], { encoding: 'utf8' }).trim()
+    if (isMac) chmodSync(ytOut, 0o755)
+    const ytdlpVersion = await ytdlpVersionOf(ytOut)
     console.log(`   versión ${ytdlpVersion}`)
 
-    console.log(`→ FFmpeg (${FFMPEG_ASSET})`)
-    const ffZip = path.join(tmp, FFMPEG_ASSET)
-    await download(FFMPEG_BASE + FFMPEG_ASSET, ffZip)
-    await verify(ffZip, FFMPEG_BASE + 'checksums.sha256', FFMPEG_ASSET)
-    const ffDir = path.join(tmp, 'ffmpeg')
-    await extract(ffZip, { dir: ffDir })
-    const top = readdirSync(ffDir)[0]
-    const binDir = path.join(ffDir, top, 'bin')
-    for (const f of readdirSync(binDir)) {
-      // ffplay no hace falta; ffmpeg + ffprobe + DLLs compartidas sí.
-      if (f === 'ffmpeg.exe' || f === 'ffprobe.exe' || f.endsWith('.dll')) {
-        copyFileSync(path.join(binDir, f), path.join(outDir, f))
-      }
-    }
-    const license = path.join(ffDir, top, 'LICENSE.txt')
-    if (existsSync(license)) copyFileSync(license, path.join(outDir, 'FFMPEG_LICENSE.txt'))
+    const ffmpeg = isMac ? await fetchMacFfmpeg(tmp) : await fetchWindowsFfmpeg(tmp)
 
     writeFileSync(
       path.join(outDir, 'versions.json'),
-      JSON.stringify({ arch, ytdlp: ytdlpVersion, ffmpeg: FFMPEG_ASSET, fetchedAt: new Date().toISOString() }, null, 2)
+      JSON.stringify({ platform, arch, ytdlp: ytdlpVersion, ffmpeg, fetchedAt: new Date().toISOString() }, null, 2)
     )
     console.log(`✓ Binarios listos en ${path.relative(root, outDir)}`)
   } finally {

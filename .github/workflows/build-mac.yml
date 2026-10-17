@@ -1,0 +1,32 @@
+# Instaladores de macOS (DMG para Apple Silicon e Intel). Se ejecuta a mano desde la pestaña
+# Actions o al publicar un tag v*. Los DMG quedan como artefacto de la ejecución.
+name: Build macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Build DMG (arm64 + x64)
+        run: npm run build:mac
+        env:
+          # Sin certificado: firma ad-hoc (ver electron-builder.yml). Para firmar y notarizar,
+          # agregar los secrets CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD y
+          # APPLE_TEAM_ID, pasarlos aquí y quitar esta variable.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Descargador-macOS
+          path: dist/*.dmg
+          if-no-files-found: error

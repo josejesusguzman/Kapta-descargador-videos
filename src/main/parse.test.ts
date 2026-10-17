@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { availableQualities, formatQuality, friendlyError, parseLine, pickThumbnail } from './parse'
 import { downloadArgs, formatArgs, isInsideDir, isMediaFile, outputTemplate } from './ytdlpArgs'
+import { posix, win32 } from 'node:path'
 import type { DownloadRequest } from '@shared/types'
 
 describe('parseLine', () => {
@@ -187,15 +188,23 @@ describe('isMediaFile', () => {
 })
 
 describe('isInsideDir', () => {
+  // Windows
   it('acepta archivos dentro de la carpeta, sin distinguir mayúsculas', () => {
-    expect(isInsideDir('C:\\Videos\\Descargador\\clip.mp4', 'C:\\Videos\\Descargador')).toBe(true)
-    expect(isInsideDir('c:\\videos\\descargador\\sub\\clip.mp4', 'C:\\Videos\\Descargador\\')).toBe(true)
+    expect(isInsideDir('C:\\Videos\\Descargador\\clip.mp4', 'C:\\Videos\\Descargador', win32)).toBe(true)
+    expect(isInsideDir('c:\\videos\\descargador\\sub\\clip.mp4', 'C:\\Videos\\Descargador\\', win32)).toBe(true)
   })
   it('rechaza rutas fuera de la carpeta', () => {
-    expect(isInsideDir('C:\\Users\\yo\\Documents\\tesis.docx', 'C:\\Videos\\Descargador')).toBe(false)
-    expect(isInsideDir('C:\\Videos\\Descargador\\..\\otro.mp4', 'C:\\Videos\\Descargador')).toBe(false)
-    expect(isInsideDir('C:\\Videos\\Descargador2\\clip.mp4', 'C:\\Videos\\Descargador')).toBe(false)
-    expect(isInsideDir('D:\\clip.mp4', 'C:\\Videos\\Descargador')).toBe(false)
-    expect(isInsideDir('C:\\Videos\\Descargador', 'C:\\Videos\\Descargador')).toBe(false)
+    expect(isInsideDir('C:\\Users\\yo\\Documents\\tesis.docx', 'C:\\Videos\\Descargador', win32)).toBe(false)
+    expect(isInsideDir('C:\\Videos\\Descargador\\..\\otro.mp4', 'C:\\Videos\\Descargador', win32)).toBe(false)
+    expect(isInsideDir('C:\\Videos\\Descargador2\\clip.mp4', 'C:\\Videos\\Descargador', win32)).toBe(false)
+    expect(isInsideDir('D:\\clip.mp4', 'C:\\Videos\\Descargador', win32)).toBe(false)
+    expect(isInsideDir('C:\\Videos\\Descargador', 'C:\\Videos\\Descargador', win32)).toBe(false)
+  })
+  it('macOS: acepta solo rutas dentro de la carpeta', () => {
+    expect(isInsideDir('/Users/yo/Movies/Descargador/clip.mp4', '/Users/yo/Movies/Descargador', posix)).toBe(true)
+    expect(isInsideDir('/Users/yo/Movies/Descargador/sub/clip.mp4', '/Users/yo/Movies/Descargador/', posix)).toBe(true)
+    expect(isInsideDir('/Users/yo/Movies/Descargador/../otro.mp4', '/Users/yo/Movies/Descargador', posix)).toBe(false)
+    expect(isInsideDir('/Users/yo/Movies/Descargador2/clip.mp4', '/Users/yo/Movies/Descargador', posix)).toBe(false)
+    expect(isInsideDir('/Users/yo/Movies/Descargador', '/Users/yo/Movies/Descargador', posix)).toBe(false)
   })
 })

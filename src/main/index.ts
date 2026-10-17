@@ -9,6 +9,7 @@ import { analyze, cleanTempRoot, updateEngine, UserError } from './ytdlp'
 import { isMediaFile } from './ytdlpArgs'
 
 const APP_ID = 'com.descargador.app'
+const isMac = process.platform === 'darwin'
 const WEEK = 7 * 24 * 60 * 60 * 1000
 
 let win: BrowserWindow | null = null
@@ -29,8 +30,10 @@ function createWindow(): void {
     backgroundColor: '#0d0e12',
     title: 'Descargador',
     icon: iconPath('icon.png'),
-    titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#0d0e12', symbolColor: '#c9cbd1', height: 44 },
+    // Windows dibuja sus botones sobre la barra propia (titleBarOverlay); macOS, los semáforos.
+    ...(isMac
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 14 } }
+      : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#0d0e12', symbolColor: '#c9cbd1', height: 44 } }),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -178,7 +181,7 @@ function registerIpc(): void {
     await shell.openPath(dir)
   })
 
-  // Arrastre nativo de Windows: CapCut, Premiere, DaVinci o el Explorador reciben el archivo real.
+  // Arrastre nativo del sistema: CapCut, Premiere, DaVinci el Explorador o el Finder reciben el archivo real.
   const fallbackIcon = nativeImage.createFromPath(iconPath('drag.png'))
   ipcMain.on('file:drag', (e, p: unknown) => {
     if (!isKnownFile(p) || !existsSync(p)) return
@@ -236,9 +239,12 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.whenReady().then(() => {
-    app.setAppUserModelId(APP_ID)
-    // Sin menú de aplicación: la ventana usa su propia barra de título.
-    Menu.setApplicationMenu(null)
+    if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+    // Windows: sin menú, la ventana usa su propia barra de título. macOS: menú mínimo, sin él no
+    // funcionan ⌘C, ⌘V, ⌘Q ni pegar un link en la ventana.
+    Menu.setApplicationMenu(
+      isMac ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null
+    )
     hardenSecurity()
     ensureEngine()
     cleanTempRoot()
