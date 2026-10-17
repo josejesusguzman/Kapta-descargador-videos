@@ -22,6 +22,8 @@ function Row({ label, hint, children }: { label: string; hint?: ReactNode; child
   )
 }
 
+const isMac = window.api.platform === 'darwin'
+
 const selectCls =
   'h-9 rounded-lg border border-line bg-bg px-3 text-ink focus:border-accent/60 focus:outline-none [&>option]:bg-surface'
 
@@ -31,10 +33,12 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
   const [updating, setUpdating] = useState(false)
   const [engineMsg, setEngineMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [version, setVersion] = useState('')
+  const [openAtLogin, setOpenAtLogin] = useState(false)
 
   useEffect(() => {
     void window.api.engineInfo().then(setEngine)
     void window.api.appVersion().then(setVersion)
+    if (isMac) void window.api.getOpenAtLogin().then(setOpenAtLogin)
     dialogRef.current?.focus()
   }, [])
 
@@ -151,6 +155,38 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
               </select>
             </Row>
           </div>
+
+          {isMac && (
+            <>
+              <h3 className="mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">Barra de menú</h3>
+              <div className="divide-y divide-line">
+                <Row
+                  label="Mostrar en la barra de menú"
+                  hint="Descarga el link que copiaste sin abrir la ventana y ve el progreso arriba. Al cerrar la ventana, Descargador sigue ahí y las descargas continúan."
+                >
+                  <input
+                    type="checkbox"
+                    checked={settings.menuBar}
+                    onChange={(e) => onChange({ menuBar: e.target.checked })}
+                    className="h-5 w-5 accent-[var(--color-accent)]"
+                    aria-label="Mostrar en la barra de menú"
+                  />
+                </Row>
+                <Row
+                  label="Abrir al iniciar sesión"
+                  hint={settings.menuBar ? 'Arranca solo en la barra de menú, sin abrir la ventana.' : undefined}
+                >
+                  <input
+                    type="checkbox"
+                    checked={openAtLogin}
+                    onChange={(e) => void window.api.setOpenAtLogin(e.target.checked).then(setOpenAtLogin)}
+                    className="h-5 w-5 accent-[var(--color-accent)]"
+                    aria-label="Abrir al iniciar sesión"
+                  />
+                </Row>
+              </div>
+            </>
+          )}
 
           <h3 className="mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">Motor de descarga</h3>
           <div className="divide-y divide-line">

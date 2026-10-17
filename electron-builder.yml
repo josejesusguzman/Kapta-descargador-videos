@@ -46,13 +46,13 @@ nsis:
   deleteAppDataOnUninstall: false
 
 # macOS: un DMG por arquitectura (Apple Silicon e Intel), compilado con el SDK del runner más reciente
-# y compatible desde macOS 12 (mínimo de Electron).
+# y compatible desde macOS 13 (mínimo de Electron 44).
 mac:
   target:
     - target: dmg
   icon: build/icon.png
   category: public.app-category.video
-  minimumSystemVersion: '12.0'
+  minimumSystemVersion: '13.0'
   darkModeSupport: true
   # Sin certificado Developer ID: firma ad-hoc. Para firmar y notarizar: quitar `identity`, definir
   # CSC_LINK / CSC_KEY_PASSWORD y APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID y poner

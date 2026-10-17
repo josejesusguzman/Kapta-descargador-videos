@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AudioFormat, HistoryItem, Job, MediaInfo, Mode, Settings } from '@shared/types'
+import { pickQuality } from '@shared/types'
 import { AlertIcon, FolderIcon, Logo, SlidersIcon, XIcon } from './components/Icons'
 import { Library } from './components/Library'
 import { MediaCard, MediaSkeleton } from './components/MediaCard'
@@ -10,13 +11,6 @@ import { UrlBar } from './components/UrlBar'
 
 const api = window.api
 const isUrl = (t: string): boolean => /^https?:\/\/\S+$/i.test(t.trim())
-
-/** Calidad inicial: la predeterminada si existe; si no, la más alta por debajo; si no, la más baja. */
-function pickQuality(available: number[], preferred: number): number {
-  if (!available.length) return 0
-  if (preferred === 0) return available[0]
-  return available.find((q) => q <= preferred) ?? available[available.length - 1]
-}
 
 export default function App() {
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -56,9 +50,12 @@ export default function App() {
         return copy
       })
     )
+    // Quitada desde el menú de macOS.
+    const offRemoved = api.onJobRemoved((id) => setJobs((list) => list.filter((j) => j.id !== id)))
     const offHistory = api.onHistoryChange(refreshHistory)
     return () => {
       offJob()
+      offRemoved()
       offHistory()
     }
   }, [refreshHistory])
@@ -86,6 +83,17 @@ export default function App() {
     },
     [settings]
   )
+
+  // Órdenes del menú de macOS. Se esperan los ajustes para que el análisis use la calidad predeterminada.
+  useEffect(() => {
+    if (!settings) return
+    return api.onCommand((command) => {
+      if (command.type === 'settings') return setShowSettings(true)
+      setShowSettings(false)
+      setUrl(command.url)
+      void analyze(command.url)
+    })
+  }, [settings, analyze])
 
   // Sugerir el link del portapapeles al volver a la ventana.
   useEffect(() => {

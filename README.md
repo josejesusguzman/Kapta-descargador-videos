@@ -24,7 +24,7 @@ Otros comandos:
 |---|---|
 | `npm test` | Pruebas unitarias (parser de progreso, argumentos de yt-dlp, errores) |
 | `npm run typecheck` | TypeScript en main/preload y renderer |
-| `npm run icons` | Regenera `build/icon.ico`, `build/icon.png` (macOS) y los PNG de `resources/icons` |
+| `npm run icons` | Regenera `build/icon.ico`, `build/icon.png` (macOS) y los PNG de `resources/icons` (incluido el ícono de la barra de menú de macOS) |
 | `npm run build:win` | Instalador x64 → `dist/Descargador-Setup-<versión>-x64.exe` |
 | `npm run build:win:arm64` | Instalador para Windows en ARM |
 | `npm run build:mac` | DMG para Apple Silicon e Intel → `dist/Descargador-<versión>-{arm64,x64}.dmg` (solo en una Mac) |
@@ -42,7 +42,14 @@ El instalador es NSIS por usuario: no pide permisos de administrador y crea acce
 
 ### macOS
 
-- Un DMG por arquitectura (Apple Silicon e Intel), compatible desde **macOS 12**; se arrastra la app a Aplicaciones.
+- Un DMG por arquitectura (Apple Silicon e Intel), compatible desde **macOS 13** (Ventura, el mínimo de Electron 44); se arrastra la app a Aplicaciones.
+- **Barra de menú** (solo macOS): un ícono arriba a la derecha muestra el progreso de las descargas. Su menú permite:
+  - Descargar el link copiado como video o solo audio, con la calidad y el formato predeterminados, sin abrir la ventana; o abrirlo en la ventana para elegir calidad.
+  - Ver las descargas en curso, cancelarlas o reintentar las que fallaron.
+  - Abrir las últimas descargas, mostrarlas en el Finder o compartirlas (AirDrop, Mensajes…).
+  - Abrir la carpeta de descargas, los ajustes y activar *Abrir al iniciar sesión* (arranca solo en la barra de menú; la app tiene que estar en Aplicaciones).
+
+  Al cerrar la ventana, la app sigue en la barra de menú (sin ícono en el Dock) y las descargas continúan; ⌘Q o *Salir de Descargador* la cierran. Se desactiva en *Ajustes → Barra de menú*, y entonces cerrar la ventana vuelve a cerrar la app.
 - El DMG solo se puede generar en una Mac. Sin una, usa el workflow **Build macOS** de GitHub Actions (pestaña *Actions* → *Build macOS* → *Run workflow*, o al publicar un tag `v*`): compila en `macos-latest` y deja cada DMG como un artefacto propio (`Descargador-macOS-arm64` para Apple Silicon, `Descargador-macOS-x64` para Intel).
 - **No está notarizado** (firma ad-hoc). La primera vez macOS bloqueará la app: ábrela, luego ve a *Ajustes del Sistema → Privacidad y seguridad* y pulsa **Abrir de todos modos**. Para distribuirla sin ese aviso hace falta una cuenta de Apple Developer: quita `mac.identity` y pon `mac.notarize: true` en `electron-builder.yml`, y define `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` y `APPLE_TEAM_ID` (como secrets en el workflow).
 - Las cookies de Chrome/Edge se leen del Llavero: macOS pedirá permiso la primera vez.
