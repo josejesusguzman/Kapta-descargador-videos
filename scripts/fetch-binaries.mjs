@@ -60,6 +60,7 @@ async function fetchOk(url) {
   return res
 }
 
+/** Descarga `url` en `dest` y devuelve la URL final (tras las redirecciones). */
 async function download(url, dest) {
   const res = await fetchOk(url)
   const total = Number(res.headers.get('content-length')) || 0
@@ -79,6 +80,7 @@ async function download(url, dest) {
   })
   await pipeline(Readable.fromWeb(res.body), counter, createWriteStream(dest))
   process.stdout.write(`   ${(done / 1048576).toFixed(1)} MB listo          \n`)
+  return res.url
 }
 
 async function sha256(file) {
@@ -145,8 +147,9 @@ async function fetchMacFfmpeg(tmp) {
     console.log(`→ ${tool} (macOS ${arch})`)
     const zip = path.join(tmp, `${tool}.zip`)
     const url = `${MAC_FFMPEG_BASE}${tool}.zip`
-    await download(url, zip)
-    await verify(zip, `${url}.sha256`, `${tool}.zip`)
+    // /redirect/latest/ no sirve el .sha256: está junto al archivo real al que redirige.
+    const finalUrl = await download(url, zip)
+    await verify(zip, `${finalUrl}.sha256`, `${tool}.zip`)
     const dir = path.join(tmp, tool)
     await extract(zip, { dir })
     const bin = readdirSync(dir, { recursive: true }).find((f) => path.basename(f) === tool)
