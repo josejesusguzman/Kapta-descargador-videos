@@ -282,7 +282,8 @@ function wireQueueEvents(): void {
   queue.on('removed', (id) => win?.webContents.send('jobs:removed', id))
   queue.on('history', () => win?.webContents.send('history:changed'))
   queue.on('done', (job) => {
-    if (win?.isFocused() || !Notification.isSupported()) return
+    // macOS: lo avisa menuBar.ts, con botón "Mostrar en Finder".
+    if (isMac || win?.isFocused() || !Notification.isSupported()) return
     const n = new Notification({
       title: 'Descarga lista',
       body: job.request.title,
