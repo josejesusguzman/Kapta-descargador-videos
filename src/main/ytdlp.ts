@@ -91,11 +91,12 @@ async function fetchThumbnail(url: string | undefined): Promise<string | undefin
   }
 }
 
-export async function analyze(url: string, cookiesBrowser: CookieBrowser): Promise<MediaInfo> {
+export async function analyze(url: string, cookiesBrowser: CookieBrowser, signal?: AbortSignal): Promise<MediaInfo> {
   const clean = url.trim()
   if (!/^https?:\/\/\S+$/i.test(clean)) throw new UserError('Pega un link válido que empiece con http:// o https://')
 
-  const { code, stdout, stderr } = await run(analyzeArgs(clean, engineOptions(cookiesBrowser)), { keepStdout: true })
+  const { code, stdout, stderr } = await run(analyzeArgs(clean, engineOptions(cookiesBrowser)), { keepStdout: true, signal })
+  if (signal?.aborted) throw new UserError('Cancelado')
   if (code !== 0) throw new UserError(friendlyError(stderr))
 
   let info: Record<string, any>

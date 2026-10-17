@@ -30,8 +30,22 @@ let lastTitle = ''
 let lastTooltip = ''
 /** El menú se arma de forma asíncrona: evita abrir dos si se hace clic dos veces seguidas. */
 let building = false
-/** Links que se analizan desde el menú (clave `modo url`): evita duplicarlos y se muestran mientras tanto. */
-const pending = new Map<string, string>()
+/**
+ * Links que se analizan desde el menú (clave `modo url`): evita duplicarlos, se muestran mientras tanto y se pueden
+ * cancelar (se cierra su yt-dlp).
+ */
+const pending = new Map<string, { url: string; controller: AbortController }>()
+
+function cancelPending(key: string): void {
+  pending.get(key)?.controller.abort()
+  pending.delete(key)
+  refresh()
+}
+
+/** Al salir: los análisis en curso no deben quedar corriendo. */
+export function cancelQuickDownloads(): void {
+  for (const key of [...pending.keys()]) cancelPending(key)
+}
 
 const isActive = (j: Job): boolean => j.status === 'downloading' || j.status === 'processing'
 
@@ -147,11 +161,14 @@ async function downloadCopied(): Promise<void> {
 async function quickDownload(url: string, mode: Mode): Promise<void> {
   const key = `${mode} ${url}`
   if (pending.has(key)) return
-  pending.set(key, url)
+  const entry = { url, controller: new AbortController() }
+  const { signal } = entry.controller
+  pending.set(key, entry)
   refresh()
   try {
     const s = getSettings()
-    const media = await analyze(url, s.cookiesBrowser)
+    const media = await analyze(url, s.cookiesBrowser, signal)
+    if (signal.aborted) return
     pending.delete(key)
     const audio = mode === 'audio' || !media.qualities.length
     ctx.addJob({
@@ -166,10 +183,12 @@ async function quickDownload(url: string, mode: Mode): Promise<void> {
       outputDir: s.outputDir
     })
   } catch (err) {
+    if (signal.aborted) return
     const message = err instanceof UserError ? err.message : `Error inesperado: ${(err as Error).message}`
     notify('No se pudo descargar', message, { onClick: () => ctx.showWindow({ type: 'analyze', url }) })
   } finally {
-    pending.delete(key)
+    // Si se canceló, la clave ya se liberó (y quizá la ocupa un nuevo intento del mismo link).
+    if (pending.get(key) === entry) pending.delete(key)
     refresh()
   }
 }
@@ -219,13 +238,17 @@ async function buildMenu(): Promise<Menu> {
   const jobs = ctx.queue.list().filter((j) => isActive(j) || j.status === 'queued' || j.status === 'error')
   if (pending.size || jobs.length) {
     items.push({ type: 'separator' }, header('Descargas'))
-    for (const u of new Set(pending.values())) items.push({ label: `Buscando ${shortUrl(u)}…`, enabled: false })
+    for (const [key, { url: u }] of pending) {
+      items.push({ label: `Buscando ${shortUrl(u)}…`, submenu: [{ label: 'Cancelar', click: () => cancelPending(key) }] })
+    }
     items.push(...jobs.map(jobItem))
-    if (jobs.filter((j) => j.status !== 'error').length > 1) {
+    const running = jobs.filter((j) => j.status !== 'error')
+    if (running.length + pending.size > 1) {
       items.push({
         label: 'Cancelar todas',
         click: () => {
-          for (const j of jobs) if (j.status !== 'error') ctx.queue.cancel(j.id)
+          cancelQuickDownloads()
+          for (const j of running) ctx.queue.cancel(j.id)
         }
       })
     }
@@ -380,10 +403,11 @@ export function setOpenAtLogin(enabled: boolean): boolean {
 /**
  * Con firma ad-hoc cada versión tiene otra firma y macOS puede dejar de abrir la nueva al iniciar sesión: tras
  * actualizar (o mover la app) se vuelve a registrar. Si el usuario la desactivó en Ajustes del Sistema, se respeta.
+ * Una copia abierta desde el DMG o desde una ruta temporal de macOS no toca el registro de la app instalada.
  */
 function refreshLoginItem(): void {
   const saved = getSettings().loginItem
-  if (!saved || saved === loginItemId()) return
+  if (!saved || saved === loginItemId() || !app.isInApplicationsFolder()) return
   if (!getOpenAtLogin()) return void updateSettings({ loginItem: '' })
   app.setLoginItemSettings({ openAtLogin: false })
   app.setLoginItemSettings({ openAtLogin: true })

@@ -4,6 +4,7 @@ import { isAbsolute, join, resolve } from 'node:path'
 import type { AppCommand, DownloadRequest, Settings } from '@shared/types'
 import { engineVersion, ensureEngine } from './binaries'
 import {
+  cancelQuickDownloads,
   getOpenAtLogin,
   initMenuBar,
   livesInMenuBar,
@@ -88,10 +89,14 @@ function confirmQuit(): boolean {
     message: 'Hay descargas en curso.',
     detail: 'Si sales ahora, se cancelarán y se borrarán los archivos incompletos.'
   }
-  if (win) return dialog.showMessageBoxSync(win, options) === 0
-  // Sin ventana (solo en la barra de menú), el aviso debe quedar al frente.
-  app.focus({ steal: true })
-  return dialog.showMessageBoxSync(options) === 0
+  // macOS: al salir desde la barra de menú la app no está activa; sin esto el aviso queda detrás de otras apps
+  // (o en una ventana minimizada) y la app parece congelada.
+  if (isMac) {
+    if (win?.isMinimized()) win.restore()
+    win?.show()
+    app.focus({ steal: true })
+  }
+  return (win ? dialog.showMessageBoxSync(win, options) : dialog.showMessageBoxSync(options)) === 0
 }
 
 /** macOS: vuelve a mostrar el ícono del Dock (y el menú de la app) antes de mostrar una ventana. */
@@ -359,6 +364,7 @@ if (!app.requestSingleInstanceLock()) {
 
   // yt-dlp corre en su propio grupo de procesos: se cierra aunque ya no quede ninguna ventana.
   app.on('will-quit', () => {
+    if (isMac) cancelQuickDownloads()
     for (const job of queue.list()) queue.cancel(job.id)
   })
 }
