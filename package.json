@@ -1,0 +1,37 @@
+{
+  "name": "descargador",
+  "productName": "Descargador",
+  "version": "0.1.0",
+  "description": "Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.",
+  "main": "./out/main/index.js",
+  "author": "Descargador",
+  "private": true,
+  "scripts": {
+    "fetch-binaries": "node scripts/fetch-binaries.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "build:win": "npm run build:win:x64",
+    "build:win:x64": "node scripts/fetch-binaries.mjs --arch=x64 && npm run typecheck && electron-vite build && electron-builder --win nsis --x64 --config electron-builder.yml",
+    "build:win:arm64": "node scripts/fetch-binaries.mjs --arch=arm64 && npm run typecheck && electron-vite build && electron-builder --win nsis --arm64 --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.7.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "extract-zip": "^2.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^5.0.4"
+  }
+}

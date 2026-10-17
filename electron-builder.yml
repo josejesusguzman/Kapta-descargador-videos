@@ -1,0 +1,45 @@
+appId: com.descargador.app
+productName: Descargador
+copyright: Copyright © 2026 Descargador
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+
+# Binarios por arquitectura (npm run fetch-binaries -- --arch=x64|arm64) y recursos sueltos.
+# Nota: yt-dlp usa el propio ejecutable como runtime JS (ELECTRON_RUN_AS_NODE), así que
+# el fuse "RunAsNode" de Electron debe seguir activado (es el valor por defecto).
+extraResources:
+  - from: resources/bin/${arch}
+    to: bin
+  - from: resources/icons
+    to: icons
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+  icon: build/icon.ico
+  executableName: Descargador
+
+# Instalador por usuario: no pide permisos de administrador.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Descargador
+  uninstallDisplayName: Descargador
+  language: '3082'
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+  deleteAppDataOnUninstall: false
