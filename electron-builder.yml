@@ -42,7 +42,7 @@ nsis:
   shortcutName: Descargador
   uninstallDisplayName: Descargador
   language: '3082'
-  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+  artifactName: Windows-${productName}-Setup-${version}-${arch}.${ext}
   deleteAppDataOnUninstall: false
 
 # macOS: un DMG por arquitectura (Apple Silicon e Intel), compilado con el SDK del runner más reciente
@@ -66,11 +66,11 @@ mac:
   signIgnore:
     - 'Resources/bin/yt-dlp$'
   notarize: false
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: macOS-${productName}-${version}-${arch}.${ext}
 
 dmg:
   title: ${productName} ${version}
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: macOS-${productName}-${version}-${arch}.${ext}
   contents:
     - x: 140
       y: 190
@@ -94,4 +94,4 @@ linux:
   description: Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.
   # .deb y .rpm exigen un responsable con email.
   maintainer: josejesusguzman <8755301+josejesusguzman@users.noreply.github.com>
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  artifactName: Linux-${productName}-${version}-${arch}.${ext}

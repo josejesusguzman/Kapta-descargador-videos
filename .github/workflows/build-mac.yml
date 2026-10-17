@@ -50,6 +50,8 @@ jobs:
           if-no-files-found: error
           # El instalador ya va comprimido.
           compression-level: 0
+          # Al re-ejecutar un job, reemplaza el artefacto anterior en vez de fallar.
+          overwrite: true
       - uses: actions/upload-artifact@v4
         with:
           name: Descargador-macOS-x64
@@ -57,3 +59,5 @@ jobs:
           if-no-files-found: error
           # El instalador ya va comprimido.
           compression-level: 0
+          # Al re-ejecutar un job, reemplaza el artefacto anterior en vez de fallar.
+          overwrite: true
