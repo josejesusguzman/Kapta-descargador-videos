@@ -30,22 +30,34 @@ let lastTitle = ''
 let lastTooltip = ''
 /** El menú se arma de forma asíncrona: evita abrir dos si se hace clic dos veces seguidas. */
 let building = false
-/** Links que se analizan desde el menú (clave `modo url`): evita duplicarlos y se muestran mientras tanto. */
-const pending = new Map<string, string>()
+/**
+ * Links que se analizan desde el menú (clave `modo url`): evita duplicarlos, se muestran mientras tanto y se pueden
+ * cancelar (se cierra su yt-dlp).
+ */
+const pending = new Map<string, { url: string; controller: AbortController }>()
+
+function cancelPending(key: string): void {
+  pending.get(key)?.controller.abort()
+  pending.delete(key)
+  refresh()
+}
+
+/** Al salir: los análisis en curso no deben quedar corriendo. */
+export function cancelQuickDownloads(): void {
+  for (const key of [...pending.keys()]) cancelPending(key)
+}
 
 const isActive = (j: Job): boolean => j.status === 'downloading' || j.status === 'processing'
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
-/**
- * Texto variable (títulos, links, errores) para una etiqueta de menú: en una línea, recortado sin partir emojis y
- * con "&" duplicado, porque macOS borra un "&" suelto de las etiquetas.
- */
-function menuText(text: string, max: number): string {
+/** En una línea y recortado sin partir emojis. */
+function clip(text: string, max: number): string {
   const clean = text.replace(/\s+/g, ' ').trim()
   const parts = Array.from(graphemes.segment(clean), (g) => g.segment)
-  const short = parts.length > max ? `${parts.slice(0, max - 1).join('').trimEnd()}…` : clean
-  return short.replace(/&/g, '&&')
+  return parts.length > max ? `${parts.slice(0, max - 1).join('').trimEnd()}…` : clean
 }
+/** Texto variable (títulos, links, errores) para una etiqueta de menú: macOS borra un "&" suelto, se duplica. */
+const menuText = (text: string, max: number): string => clip(text, max).replace(/&/g, '&&')
 const shortUrl = (url: string): string => menuText(url.replace(/^https?:\/\/(www\.)?/i, ''), 42)
 
 const [osMajor = 0] = process.getSystemVersion().split('.').map(Number)
@@ -79,28 +91,84 @@ function qualityName(q: number): string {
   return `${q}p`
 }
 
-function notify(title: string, body: string, onClick?: () => void): void {
+interface NotifyOptions {
+  onClick?: () => void
+  /** macOS la muestra como miniatura a la derecha. */
+  image?: NativeImage
+  actions?: { text: string; run: () => void }[]
+}
+
+/**
+ * Notificaciones vivas: si Electron libera el objeto, el clic ya no llega. macOS no avisa cuando se descarta una
+ * notificación sin botones, así que se guardan las últimas 20.
+ */
+const live = new Set<Notification>()
+
+function notify(title: string, body: string, opts: NotifyOptions = {}): void {
   if (!Notification.isSupported()) return
-  const n = new Notification({ title, body, silent: true })
-  if (onClick) n.on('click', onClick)
+  const n = new Notification({
+    title,
+    // macOS corta el texto en 256 bytes.
+    body: clip(body, 100),
+    silent: true,
+    icon: opts.image,
+    actions: opts.actions?.map((a) => ({ type: 'button' as const, text: a.text }))
+  })
+  const release = (): boolean => live.delete(n)
+  n.on('click', () => {
+    release()
+    opts.onClick?.()
+  })
+  n.on('action', (e) => {
+    release()
+    opts.actions?.[e.actionIndex]?.run()
+  })
+  n.on('close', release)
+  n.on('failed', release)
+  live.add(n)
+  if (live.size > 20) live.delete(live.values().next().value!)
   n.show()
 }
 
-/** Mismo criterio que la ventana: el link del portapapeles, si es uno. */
-async function clipboardUrl(): Promise<string | null> {
-  const text = (await clipboard.readText()).trim()
-  return /^https?:\/\/\S+$/i.test(text) && text.length < 2048 ? text : null
+const thumbFromDataUrl = (dataUrl?: string): NativeImage | undefined => {
+  const img = dataUrl ? nativeImage.createFromDataURL(dataUrl) : undefined
+  return img && !img.isEmpty() ? img : undefined
+}
+
+/**
+ * Mismo criterio que la ventana: el link del portapapeles, si es uno; null si no lo es. macOS anunció un aviso de
+ * privacidad al leer el portapapeles: si no responde a tiempo, undefined, para que el menú no se quede esperando.
+ */
+function clipboardUrl(timeout: number): Promise<string | null | undefined> {
+  const read = clipboard.readText().then(
+    (t) => {
+      const text = t.trim()
+      return /^https?:\/\/\S+$/i.test(text) && text.length < 2048 ? text : null
+    },
+    () => null
+  )
+  return Promise.race([read, new Promise<undefined>((r) => setTimeout(() => r(undefined), timeout))])
+}
+
+/** Lee el portapapeles al hacer clic (si al abrir el menú no se pudo) y descarga el link como video. */
+async function downloadCopied(): Promise<void> {
+  const url = await clipboardUrl(10000)
+  if (url) return quickDownload(url, 'video')
+  notify('No hay un link copiado', 'Copia el link del video y vuelve a intentarlo.')
 }
 
 /** Analiza el link y lo pone en la cola con los ajustes predeterminados, sin abrir la ventana. */
 async function quickDownload(url: string, mode: Mode): Promise<void> {
   const key = `${mode} ${url}`
   if (pending.has(key)) return
-  pending.set(key, url)
+  const entry = { url, controller: new AbortController() }
+  const { signal } = entry.controller
+  pending.set(key, entry)
   refresh()
   try {
     const s = getSettings()
-    const media = await analyze(url, s.cookiesBrowser)
+    const media = await analyze(url, s.cookiesBrowser, signal)
+    if (signal.aborted) return
     pending.delete(key)
     const audio = mode === 'audio' || !media.qualities.length
     ctx.addJob({
@@ -115,10 +183,12 @@ async function quickDownload(url: string, mode: Mode): Promise<void> {
       outputDir: s.outputDir
     })
   } catch (err) {
+    if (signal.aborted) return
     const message = err instanceof UserError ? err.message : `Error inesperado: ${(err as Error).message}`
-    notify('No se pudo descargar', message, () => ctx.showWindow({ type: 'analyze', url }))
+    notify('No se pudo descargar', message, { onClick: () => ctx.showWindow({ type: 'analyze', url }) })
   } finally {
-    pending.delete(key)
+    // Si se canceló, la clave ya se liberó (y quizá la ocupa un nuevo intento del mismo link).
+    if (pending.get(key) === entry) pending.delete(key)
     refresh()
   }
 }
@@ -149,7 +219,7 @@ function jobItem(job: Job): MenuItemConstructorOptions {
 
 async function buildMenu(): Promise<Menu> {
   const s = getSettings()
-  const url = await clipboardUrl().catch(() => null)
+  const url = await clipboardUrl(250)
   const items: MenuItemConstructorOptions[] = []
 
   if (url) {
@@ -159,6 +229,8 @@ async function buildMenu(): Promise<Menu> {
       { label: `Descargar solo audio (${s.audioFormat.toUpperCase()})`, click: () => void quickDownload(url, 'audio') },
       { label: 'Elegir calidad y formato…', click: () => ctx.showWindow({ type: 'analyze', url }) }
     )
+  } else if (url === undefined) {
+    items.push({ label: 'Descargar el link copiado', click: () => void downloadCopied() })
   } else {
     items.push({ label: 'Copia un link para descargarlo desde aquí', enabled: false })
   }
@@ -166,13 +238,17 @@ async function buildMenu(): Promise<Menu> {
   const jobs = ctx.queue.list().filter((j) => isActive(j) || j.status === 'queued' || j.status === 'error')
   if (pending.size || jobs.length) {
     items.push({ type: 'separator' }, header('Descargas'))
-    for (const u of new Set(pending.values())) items.push({ label: `Buscando ${shortUrl(u)}…`, enabled: false })
+    for (const [key, { url: u }] of pending) {
+      items.push({ label: `Buscando ${shortUrl(u)}…`, submenu: [{ label: 'Cancelar', click: () => cancelPending(key) }] })
+    }
     items.push(...jobs.map(jobItem))
-    if (jobs.filter((j) => j.status !== 'error').length > 1) {
+    const running = jobs.filter((j) => j.status !== 'error')
+    if (running.length + pending.size > 1) {
       items.push({
         label: 'Cancelar todas',
         click: () => {
-          for (const j of jobs) if (j.status !== 'error') ctx.queue.cancel(j.id)
+          cancelQuickDownloads()
+          for (const j of running) ctx.queue.cancel(j.id)
         }
       })
     }
@@ -280,7 +356,9 @@ export function windowClosedToMenuBar(): void {
   const busy = ctx.queue.list().some((j) => isActive(j) || j.status === 'queued')
   if (closeHintShown || !busy) return
   closeHintShown = true
-  notify('Descargador sigue en la barra de menú', 'Tus descargas continúan. Ábrelo desde el ícono de arriba.')
+  notify('Descargador sigue en la barra de menú', 'Tus descargas continúan. Ábrelo desde el ícono de arriba.', {
+    onClick: () => ctx.showWindow()
+  })
 }
 
 /** /Applications/Descargador.app */
@@ -325,10 +403,11 @@ export function setOpenAtLogin(enabled: boolean): boolean {
 /**
  * Con firma ad-hoc cada versión tiene otra firma y macOS puede dejar de abrir la nueva al iniciar sesión: tras
  * actualizar (o mover la app) se vuelve a registrar. Si el usuario la desactivó en Ajustes del Sistema, se respeta.
+ * Una copia abierta desde el DMG o desde una ruta temporal de macOS no toca el registro de la app instalada.
  */
 function refreshLoginItem(): void {
   const saved = getSettings().loginItem
-  if (!saved || saved === loginItemId()) return
+  if (!saved || saved === loginItemId() || !app.isInApplicationsFolder()) return
   if (!getOpenAtLogin()) return void updateSettings({ loginItem: '' })
   app.setLoginItemSettings({ openAtLogin: false })
   app.setLoginItemSettings({ openAtLogin: true })
@@ -398,10 +477,23 @@ export function initMenuBar(context: MenuBarContext): void {
   ctx = context
   Menu.setApplicationMenu(appMenu())
   refreshLoginItem()
+  // El primer uso pide permiso para notificar; se hace ya para que no se pierda el primer aviso real.
+  Notification.isSupported()
   ctx.queue.on('update', refresh)
+  ctx.queue.on('done', (job) => {
+    const file = job.filePath
+    if (ctx.hasFocusedWindow() || !file) return
+    notify('Descarga lista', job.request.title, {
+      image: thumbFromDataUrl(job.request.thumbnail),
+      onClick: () => ctx.showWindow(),
+      actions: [{ text: 'Mostrar en Finder', run: () => shell.showItemInFolder(file) }]
+    })
+  })
   // Con la ventana cerrada, un error no se vería: se avisa.
   ctx.queue.on('failed', (job) => {
-    if (!ctx.hasFocusedWindow()) notify('No se pudo descargar', `${job.request.title}: ${job.error ?? 'Error'}`, () => ctx.showWindow())
+    if (!ctx.hasFocusedWindow()) {
+      notify('No se pudo descargar', `${job.request.title}: ${job.error ?? 'Error'}`, { onClick: () => ctx.showWindow() })
+    }
   })
   syncMenuBar()
 }

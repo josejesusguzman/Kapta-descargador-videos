@@ -1,11 +1,19 @@
 # Paquetes de Linux (AppImage, .deb y .rpm) para x64 y ARM64. Se ejecuta a mano desde la pestaña
-# Actions o al publicar un tag v*. Cada paquete queda como un artefacto propio de la ejecución.
+# Actions o desde pr-release.yml en cada PR a main. Cada paquete queda como un artefacto propio.
 name: Build Linux
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      version:
+        description: Versión de la app para los instaladores (p. ej. 0.2.0). Vacío = la de package.json.
+        type: string
+        default: ''
+      ref:
+        description: Commit a compilar. Vacío = el del evento.
+        type: string
+        default: ''
 
 jobs:
   linux:
@@ -24,6 +32,8 @@ jobs:
       USE_SYSTEM_FPM: 'true'
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -35,6 +45,13 @@ jobs:
           sudo apt-get install -y rpm ruby ruby-dev build-essential
           sudo gem install fpm --no-document
       - run: npm ci
+      # Los instaladores llevan la versión del release (p. ej. Descargador-0.2.0-arm64.dmg).
+      - name: Versión ${{ inputs.version }}
+        if: inputs.version != ''
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
       - run: npm test
       - name: Build paquetes ${{ matrix.arch }}
         run: npm run build:linux:${{ matrix.arch }}

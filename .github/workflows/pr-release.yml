@@ -1,0 +1,171 @@
+# Cada PR a main compila los instaladores de macOS, Windows y Linux (los tres workflows build-*.yml) y los
+# publica en un release con el siguiente número de tag (0.1 → 0.2 → … → 0.10). Un release por PR: cada push
+# nuevo al PR vuelve a compilar, reemplaza los instaladores y mueve el tag al último commit.
+name: PR a main
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+# Un push nuevo al mismo PR cancela la corrida anterior.
+concurrency:
+  group: pr-release-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PR: ${{ github.event.pull_request.number }}
+  SHA: ${{ github.event.pull_request.head.sha }}
+  # Un PR desde un fork recibe un token de solo lectura: compila, pero no reserva tag ni publica release.
+  SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  version:
+    name: Número de versión
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+    steps:
+      - name: Tag del release de este PR
+        id: tag
+        shell: bash
+        run: |
+          marker="<!-- descargador-pr: $PR -->"
+
+          # Siguiente número: el tag numérico más alto (0.1, 0.10, v2…) + 1 en su último componente.
+          next_tag() {
+            local latest prefix nums last head
+            latest=$(gh api "repos/$GH_REPO/git/matching-refs/tags" --paginate --jq '.[].ref | sub("^refs/tags/"; "")' \
+              | { grep -E '^v?[0-9]+(\.[0-9]+)*$' || true; } | sort -V | tail -n1)
+            if [ -z "$latest" ]; then echo 0.1; return; fi
+            prefix=${latest%%[0-9]*}
+            nums=${latest#"$prefix"}
+            last=${nums##*.}
+            head=${nums%.*}
+            if [ "$head" = "$nums" ]; then echo "$prefix$((10#$last + 1))"; else echo "$prefix$head.$((10#$last + 1))"; fi
+          }
+
+          # ¿Este PR ya tiene release (publicado o borrador)? Se conserva su número.
+          tag=$(gh api "repos/$GH_REPO/releases?per_page=100" --paginate \
+            --jq ".[] | select((.body // \"\") | contains(\"$marker\")) | .tag_name" | head -n1)
+
+          if [ -z "$tag" ] && [ "$SAME_REPO" != true ]; then
+            tag=$(next_tag)
+          elif [ -z "$tag" ]; then
+            # Crear la ref es atómico: si otro PR tomó ese número un instante antes, la API responde 422 y se
+            # prueba con el siguiente.
+            for attempt in 1 2 3 4 5; do
+              tag=$(next_tag)
+              if gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" > /dev/null; then break; fi
+              tag=''
+              sleep $((attempt * 2))
+            done
+            if [ -z "$tag" ]; then echo "::error::No se pudo reservar un tag nuevo"; exit 1; fi
+            # Borrador con el marcador: si el build falla o llega otro push, el PR conserva este número.
+            gh release create "$tag" --draft --verify-tag --title "$tag" --notes "$marker"
+          fi
+
+          # Versión semver para package.json: 0.2 → 0.2.0, v3 → 3.0.0.
+          IFS=. read -r major minor patch _ <<< "${tag#v}"
+          version="${major}.${minor:-0}.${patch:-0}"
+          echo "PR #$PR → tag $tag, versión $version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  mac:
+    name: macOS
+    needs: version
+    uses: ./.github/workflows/build-mac.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      ref: ${{ github.event.pull_request.head.sha }}
+
+  win:
+    name: Windows
+    needs: version
+    uses: ./.github/workflows/build-win.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      ref: ${{ github.event.pull_request.head.sha }}
+
+  linux:
+    name: Linux
+    needs: version
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      ref: ${{ github.event.pull_request.head.sha }}
+
+  release:
+    name: Release
+    needs: [version, mac, win, linux]
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      # Todos los artefactos en una sola carpeta, ya descomprimidos: se suben los instaladores tal cual.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Descargador-*
+          path: installers
+          merge-multiple: true
+
+      - name: Publicar el release ${{ needs.version.outputs.tag }}
+        shell: bash
+        run: |
+          ls -l installers
+
+          # El tag apunta al commit que se compiló.
+          gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" -f sha="$SHA" -F force=true > /dev/null
+
+          gh release upload "$TAG" installers/* --clobber
+          # Quita los instaladores de una versión anterior del PR que ya no corresponden.
+          gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r name; do
+            if [ ! -e "installers/$name" ]; then gh release delete-asset "$TAG" "$name" --yes; fi
+          done
+
+          # Orden y descripción de cada instalador en la tabla de las notas.
+          describe() {
+            case "$1" in
+              *-arm64.dmg) echo '01|macOS · Apple Silicon (M1 en adelante)' ;;
+              *-x64.dmg) echo '02|macOS · Intel' ;;
+              *-x64.exe) echo '03|Windows · PC Intel o AMD' ;;
+              *-arm64.exe) echo '04|Windows · ARM (Snapdragon)' ;;
+              *-x86_64.AppImage) echo '05|Linux x64 · AppImage (cualquier distro)' ;;
+              *-amd64.deb) echo '06|Linux x64 · .deb (Debian, Ubuntu, Mint)' ;;
+              *-x86_64.rpm) echo '07|Linux x64 · .rpm (Fedora, openSUSE)' ;;
+              *-arm64.AppImage) echo '08|Linux ARM64 · AppImage (cualquier distro)' ;;
+              *-arm64.deb) echo '09|Linux ARM64 · .deb (Debian, Ubuntu, Mint)' ;;
+              *-aarch64.rpm) echo '10|Linux ARM64 · .rpm (Fedora, openSUSE)' ;;
+              *) echo '99|Otro' ;;
+            esac
+          }
+          {
+            echo "<!-- descargador-pr: $PR -->"
+            echo "Instaladores del PR #$PR ($TITLE), commit ${SHA:0:7}. Se reemplazan con cada push al PR."
+            echo
+            echo "| Equipo | Instalador |"
+            echo "|---|---|"
+            for f in installers/*; do
+              name=$(basename "$f")
+              echo "$(describe "$name")|$name"
+            done | sort | while IFS='|' read -r _ desc name; do
+              echo "| $desc | \`$name\` |"
+            done
+            echo
+            gh api "repos/$GH_REPO/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$SHA" --jq .body || true
+          } > notes.md
+
+          gh release edit "$TAG" --title "$TAG" --notes-file notes.md --draft=false
