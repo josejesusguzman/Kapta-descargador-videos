@@ -2,6 +2,179 @@
 
 App de escritorio para Windows, macOS y Linux que descarga video y audio de YouTube, TikTok, Instagram y más de 1,700 sitios, pensada para editores de contenido. Funciona 100 % en local, sin cuentas, sin anuncios y sin telemetría. Los archivos descargados se arrastran directo a CapCut (o a cualquier editor).
 
+## Instalación
+
+Kapta Descargador funciona en **Windows 10/11**, **macOS 13 (Ventura) o más nuevo** y **Linux** (x64 y ARM64). No necesitas cuenta ni instalar nada más: yt-dlp y FFmpeg ya vienen dentro de la app.
+
+| Tu equipo | Opción | Archivo que descargas |
+|---|---|---|
+| Windows con procesador Intel o AMD (la mayoría) | [Instalador de Windows](#windows) | `Windows-Kapta-Descargador-Setup-<versión>-x64.exe` |
+| Windows en ARM (Snapdragon, Surface Pro X…) | [Instalador de Windows](#windows) | `Windows-Kapta-Descargador-Setup-<versión>-arm64.exe` |
+| Mac con chip Apple (M1, M2, M3, M4…) | [DMG de macOS](#macos) | `macOS-Kapta-Descargador-<versión>-arm64.dmg` |
+| Mac con procesador Intel | [DMG de macOS](#macos) | `macOS-Kapta-Descargador-<versión>-x64.dmg` |
+| Linux, cualquier distribución | [AppImage](#linux-appimage-cualquier-distribución) | `Linux-Kapta-Descargador-<versión>-x86_64.AppImage` (ARM: `-arm64.AppImage`) |
+| Ubuntu, Debian, Linux Mint, Pop!_OS… | [Paquete .deb](#linux-paquete-deb-ubuntu-debian-mint) | `Linux-Kapta-Descargador-<versión>-amd64.deb` (ARM: `-arm64.deb`) |
+| Fedora, openSUSE, RHEL… | [Paquete .rpm](#linux-paquete-rpm-fedora-opensuse) | `Linux-Kapta-Descargador-<versión>-x86_64.rpm` (ARM: `-aarch64.rpm`) |
+| Cualquier sistema, para desarrolladores | [Desde el código fuente](#desde-el-código-fuente) | — |
+
+> **Sobre las imágenes:** las capturas de la app (`app-*.png`) son reales, tomadas de la versión 0.3 en Linux; la app se ve igual en Windows y macOS. Las de las ventanas de Windows, macOS, GitHub y el gestor de archivos de Linux son **ilustraciones** que reproducen lo que vas a ver; los textos pueden variar un poco según la versión y el idioma de tu sistema.
+
+### Paso 1: descarga el instalador
+
+1. Entra a la página del último release: **[github.com/josejesusguzman/Kapta-descargador-videos/releases/latest](https://github.com/josejesusguzman/Kapta-descargador-videos/releases/latest)**.
+2. Baja hasta la sección **Assets**. Cada archivo empieza con el sistema al que va dirigido (`Windows-`, `macOS-`, `Linux-`) y termina con la arquitectura (`x64`, `arm64`…).
+3. Haz clic en el archivo de tu equipo (ver la tabla de arriba) y espera a que termine de descargar. Pesan entre 150 y 300 MB.
+
+<p align="center"><img src="docs/instalacion/release-assets.png" width="640" alt="Sección Assets del release con los instaladores de cada sistema"></p>
+<p align="center"><sub>Ilustración: la sección <b>Assets</b> del release. Ignora <i>Source code</i>: es el código, no la app.</sub></p>
+
+> ¿No sabes qué arquitectura tienes?
+> - **Windows:** *Configuración → Sistema → Información*, en *Tipo de sistema*: "procesador basado en x64" → `x64`; "procesador basado en ARM" → `arm64`.
+> - **Mac:** menú Apple → *Acerca de esta Mac*. Si dice **Chip Apple M…** → `arm64`; si dice **Procesador Intel** → `x64`.
+> - **Linux:** en una terminal, `uname -m`. `x86_64` → x64; `aarch64` → ARM64.
+
+### Windows
+
+El instalador es por usuario: **no pide contraseña de administrador**. Como todavía no está firmado digitalmente, Windows muestra un aviso la primera vez.
+
+1. Abre el archivo `Windows-Kapta-Descargador-Setup-<versión>-x64.exe` (o `-arm64.exe`) desde la carpeta **Descargas** o desde la barra de descargas del navegador.
+   - Si el navegador dice que el archivo "no se descarga habitualmente", abre el menú **⋯** de esa descarga y elige **Conservar** (Edge: *Conservar → Mostrar más → Conservar de todos modos*).
+2. Aparece **"Windows protegió su PC"**. Haz clic en **Más información**.
+
+   <img src="docs/instalacion/windows-smartscreen-1.png" width="480" alt="Aviso de SmartScreen con el enlace Más información">
+
+3. Se muestra el nombre del archivo y "Editor desconocido". Haz clic en **Ejecutar de todas formas**.
+
+   <img src="docs/instalacion/windows-smartscreen-2.png" width="480" alt="Aviso de SmartScreen con el botón Ejecutar de todas formas">
+
+4. Si el asistente pregunta para quién instalarlo, elige **Sólo para mí** y pulsa **Siguiente**.
+5. En **Elegir lugar de instalación** deja la carpeta propuesta (o pulsa *Examinar…* para cambiarla) y haz clic en **Instalar**.
+
+   <img src="docs/instalacion/windows-instalador-carpeta.png" width="480" alt="Asistente de instalación: Elegir lugar de instalación">
+
+6. Al terminar, deja marcada **Ejecutar Kapta Descargador** y haz clic en **Terminar**.
+
+   <img src="docs/instalacion/windows-instalador-terminar.png" width="480" alt="Asistente de instalación: Completando el asistente">
+
+Listo: la app queda en el **Menú Inicio** y con un acceso directo en el **escritorio**.
+
+- **Actualizar:** descarga el instalador de la versión nueva y repite los pasos; se instala encima y conserva tus ajustes e historial.
+- **Desinstalar:** *Configuración → Aplicaciones → Aplicaciones instaladas →* **Kapta Descargador** *→ ⋯ → Desinstalar*. Tus ajustes quedan en `%APPDATA%\Kapta Descargador` por si la vuelves a instalar; bórrala a mano si no los quieres.
+
+### macOS
+
+La app no está notarizada por Apple, así que macOS la bloquea la primera vez que la abres. Solo hay que permitirla una vez.
+
+1. Abre el archivo `macOS-Kapta-Descargador-<versión>-arm64.dmg` (o `-x64.dmg`) desde **Descargas**. Se abre una ventana con la app y la carpeta *Applications*.
+2. **Arrastra el ícono de Kapta Descargador sobre la carpeta Applications** y espera a que termine de copiarse.
+
+   <img src="docs/instalacion/macos-dmg.png" width="480" alt="Ventana del DMG: arrastrar Kapta Descargador a Applications">
+
+3. Expulsa el disco "Kapta Descargador" (botón ⏏ en la barra lateral del Finder) y abre **Aplicaciones → Kapta Descargador**.
+4. Aparece **"No se abrió “Kapta Descargador”"**. Pulsa **Listo** (no la mandes a la papelera).
+
+   <img src="docs/instalacion/macos-bloqueada.png" width="260" alt="Aviso de macOS: No se abrió Kapta Descargador">
+
+5. Abre el menú Apple → **Ajustes del Sistema → Privacidad y seguridad**, baja hasta **Seguridad** y haz clic en **Abrir de todos modos** junto a "Se bloqueó “Kapta Descargador”…". El botón aparece durante una hora después del intento del paso 4.
+
+   <img src="docs/instalacion/macos-privacidad.png" width="560" alt="Ajustes del Sistema, Privacidad y seguridad, botón Abrir de todos modos">
+
+6. Confirma con **Abrir de todos modos** y escribe tu contraseña (o usa Touch ID).
+
+   <img src="docs/instalacion/macos-abrir.png" width="260" alt="Confirmación de macOS: Abrir de todos modos">
+
+Desde ahí la app se abre normal, con doble clic o desde Launchpad/Spotlight.
+
+- **En macOS 13 y 14** también puedes, en lugar de los pasos 4–6, hacer **clic derecho (o Control + clic) sobre la app en Aplicaciones → Abrir → Abrir**.
+- **Alternativa por Terminal** (cualquier versión): copia la app a Aplicaciones y ejecuta
+  ```bash
+  xattr -dr com.apple.quarantine "/Applications/Kapta Descargador.app"
+  ```
+  Después ábrela normal; macOS ya no mostrará el aviso.
+- La primera vez macOS te puede pedir permiso para **notificaciones** y, si en *Ajustes* eliges usar las cookies de Chrome o Edge, acceso al **Llavero**.
+- **Actualizar:** descarga el DMG nuevo y arrastra la app a Applications; elige **Reemplazar**. Puede que tengas que repetir los pasos 4–6.
+- **Desinstalar:** arrastra **Kapta Descargador** de Aplicaciones a la Papelera. Tus ajustes quedan en `~/Library/Application Support/Kapta Descargador`.
+
+### Linux: AppImage (cualquier distribución)
+
+Un solo archivo que se ejecuta sin instalar nada.
+
+1. Descarga `Linux-Kapta-Descargador-<versión>-x86_64.AppImage` (o `-arm64.AppImage`).
+2. Dale permiso de ejecución, de una de estas dos formas:
+   - **Con el gestor de archivos:** clic derecho sobre el archivo → **Propiedades** → activa **Ejecutable como programa** (en algunas distros: pestaña *Permisos → Permitir ejecutar el archivo como un programa*).
+
+     <img src="docs/instalacion/linux-appimage-ejecutable.png" width="380" alt="Propiedades del AppImage con Ejecutable como programa activado">
+
+   - **Con la terminal:**
+     ```bash
+     cd ~/Descargas
+     chmod +x Linux-Kapta-Descargador-*.AppImage
+     ```
+3. Ábrelo con doble clic o con `./Linux-Kapta-Descargador-*.AppImage`.
+4. Si no abre y la terminal menciona **FUSE** o `libfuse.so.2`, instala FUSE 2 y vuelve a intentarlo:
+   ```bash
+   sudo apt install libfuse2t64   # Ubuntu 24.04 o más nuevo
+   sudo apt install libfuse2      # Ubuntu 22.04, Debian 12, Mint 21
+   sudo dnf install fuse-libs     # Fedora
+   ```
+
+- **Actualizar:** descarga el AppImage nuevo y borra el anterior.
+- **Desinstalar:** borra el archivo `.AppImage`. Tus ajustes quedan en `~/.config/Kapta Descargador`.
+
+### Linux: paquete .deb (Ubuntu, Debian, Mint)
+
+Instala la app en `/opt/Kapta Descargador` y la agrega al menú de aplicaciones.
+
+1. Descarga `Linux-Kapta-Descargador-<versión>-amd64.deb` (o `-arm64.deb`).
+2. Abre una terminal en la carpeta de descargas e instálalo (te pide tu contraseña):
+   ```bash
+   cd ~/Descargas
+   sudo apt install ./Linux-Kapta-Descargador-*-amd64.deb
+   ```
+   El `./` es necesario para que `apt` use el archivo local e instale las dependencias que falten.
+3. Busca **Kapta Descargador** en el menú de aplicaciones, o ejecuta `kapta-descargador` en la terminal.
+
+- **Actualizar:** repite el paso 2 con el `.deb` nuevo.
+- **Desinstalar:** `sudo apt remove kapta-descargador`.
+
+### Linux: paquete .rpm (Fedora, openSUSE)
+
+1. Descarga `Linux-Kapta-Descargador-<versión>-x86_64.rpm` (o `-aarch64.rpm`).
+2. Instálalo desde la terminal:
+   ```bash
+   cd ~/Descargas
+   sudo dnf install ./Linux-Kapta-Descargador-*.rpm                          # Fedora, RHEL
+   sudo zypper install --allow-unsigned-rpm ./Linux-Kapta-Descargador-*.rpm  # openSUSE
+   ```
+3. Búscala en el menú de aplicaciones o ejecuta `kapta-descargador`.
+
+- **Actualizar:** repite el paso 2 con el `.rpm` nuevo.
+- **Desinstalar:** `sudo dnf remove kapta-descargador` o `sudo zypper remove kapta-descargador`.
+
+### Primer uso
+
+Al abrir la app por primera vez verás la bienvenida; pulsa **Empezar**.
+
+<p align="center"><img src="docs/instalacion/app-bienvenida.png" width="640" alt="Pantalla de bienvenida de Kapta Descargador"></p>
+
+Después, pega el link del video (botón **Pegar** o Ctrl/⌘ + V), elige video o audio y la calidad, y descarga. Los archivos se guardan en la carpeta **Videos → Kapta Descargador** (se cambia en **Ajustes**) y desde la lista los puedes arrastrar directo a CapCut o a tu editor.
+
+<p align="center"><img src="docs/instalacion/app-principal.png" width="640" alt="Pantalla principal de Kapta Descargador"></p>
+
+### Desde el código fuente
+
+Para desarrolladores o para equipos sin instalador. Necesitas [Git](https://git-scm.com/) y [Node.js 22](https://nodejs.org/).
+
+```bash
+git clone https://github.com/josejesusguzman/Kapta-descargador-videos.git
+cd Kapta-descargador-videos
+npm install
+npm run fetch-binaries   # descarga yt-dlp y FFmpeg para tu sistema
+npm run dev              # abre la app en modo desarrollo
+```
+
+Para generar tu propio instalador usa `npm run build:win`, `npm run build:mac` (solo en una Mac) o `npm run build:linux` (solo en Linux); el resultado queda en `dist/`. Ver [Desarrollo](#desarrollo).
+
 ## Cómo funciona
 
 - **Electron + React** (electron-vite, Tailwind 4, TypeScript).
@@ -65,6 +238,8 @@ Los tres workflows de build también se pueden lanzar a mano (pestaña *Actions*
 
 El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*): genera en `windows-latest` un artefacto por arquitectura (`Kapta-Descargador-Windows-x64` y `Kapta-Descargador-Windows-arm64`). **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
 
+**winget** (en preparación, todavía no disponible para usuarios): el workflow **Winget** envía los instaladores de Windows a [winget-pkgs](https://github.com/microsoft/winget-pkgs) como `josejesusguzman.KaptaDescargador` al hacer merge de un PR a main (o a mano desde *Actions* con el tag de un release). Necesita un token clásico de GitHub con el scope `public_repo` guardado como secret `WINGET_TOKEN`; con él abre un PR en `microsoft/winget-pkgs` desde un fork en tu cuenta, y los revisores de Microsoft lo validan antes de que el paquete aparezca.
+
 ### macOS
 
 - Un DMG por arquitectura (Apple Silicon e Intel), compatible desde **macOS 13** (Ventura, el mínimo de Electron 44); se arrastra la app a Aplicaciones.
@@ -89,6 +264,10 @@ El instalador es NSIS por usuario: no pide permisos de administrador y crea acce
 - Sin un equipo con Linux, usa el workflow **Build Linux** de GitHub Actions (pestaña *Actions* → *Build Linux* → *Run workflow*): compila de forma nativa en `ubuntu-latest` (x64) y `ubuntu-24.04-arm` (ARM64) y deja cada paquete como un artefacto propio (`Kapta-Descargador-Linux-<arch>-AppImage`, `-deb` y `-rpm`).
 
 FFmpeg se incluye en su compilación GPL; ver `THIRD_PARTY_NOTICES.md`.
+
+## Licencia
+
+El código de Kapta Descargador se distribuye bajo la licencia MIT (ver `LICENSE`). Los componentes de terceros que incluyen los instaladores (yt-dlp, FFmpeg, Electron, React) conservan sus propias licencias; ver `THIRD_PARTY_NOTICES.md`.
 
 ## Estructura
 

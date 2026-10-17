@@ -22,6 +22,8 @@ extraResources:
     to: icons
   - from: THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
+  - from: LICENSE
+    to: LICENSE
 
 asar: true
 
