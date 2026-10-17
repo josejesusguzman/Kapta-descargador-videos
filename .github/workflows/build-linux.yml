@@ -1,0 +1,59 @@
+# Paquetes de Linux (AppImage, .deb y .rpm) para x64 y ARM64. Se ejecuta a mano desde la pestaña
+# Actions o al publicar un tag v*. Cada paquete queda como un artefacto propio de la ejecución.
+name: Build Linux
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    # Compilación nativa en cada arquitectura (fetch-binaries puede ejecutar yt-dlp para leer su versión).
+    runs-on: ${{ matrix.runner }}
+    env:
+      # El fpm que descarga electron-builder es solo x86_64: se usa el del sistema en ambas arquitecturas.
+      USE_SYSTEM_FPM: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # rpm aporta rpmbuild; ruby + fpm generan el .deb y el .rpm.
+      - name: Herramientas de empaquetado
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm ruby ruby-dev build-essential
+          sudo gem install fpm --no-document
+      - run: npm ci
+      - run: npm test
+      - name: Build paquetes ${{ matrix.arch }}
+        run: npm run build:linux:${{ matrix.arch }}
+      # Un artefacto por paquete. Ya van comprimidos, no se recomprimen.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Descargador-Linux-${{ matrix.arch }}-AppImage
+          path: dist/*.AppImage
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Descargador-Linux-${{ matrix.arch }}-deb
+          path: dist/*.deb
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Descargador-Linux-${{ matrix.arch }}-rpm
+          path: dist/*.rpm
+          if-no-files-found: error
+          compression-level: 0

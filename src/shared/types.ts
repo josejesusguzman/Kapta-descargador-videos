@@ -5,6 +5,13 @@ export type CookieBrowser = 'none' | 'firefox' | 'edge' | 'chrome'
 /** Calidades estándar que se ofrecen como chips (en "p", lado corto equivalente a 16:9). */
 export const QUALITY_STEPS = [2160, 1440, 1080, 720, 480, 360] as const
 
+/** Calidad inicial: la predeterminada si existe; si no, la más alta por debajo; si no, la más baja. */
+export function pickQuality(available: number[], preferred: number): number {
+  if (!available.length) return 0
+  if (preferred === 0) return available[0]
+  return available.find((q) => q <= preferred) ?? available[available.length - 1]
+}
+
 export interface MediaInfo {
   url: string
   id: string
@@ -72,7 +79,14 @@ export interface Settings {
   autoUpdateEngine: boolean
   lastEngineCheck: number
   onboardingDone: boolean
+  /** Solo macOS: ícono en la barra de menú; al cerrar la ventana la app sigue ahí. */
+  menuBar: boolean
+  /** Solo macOS: "ruta@versión" con la que se registró el ítem de inicio ('' si no). */
+  loginItem: string
 }
+
+/** Órdenes que el menú de macOS (barra de menú o menú de la app) envía a la ventana. */
+export type AppCommand = { type: 'settings' } | { type: 'analyze'; url: string }
 
 export interface EngineInfo {
   version: string
@@ -96,6 +110,7 @@ export interface DescargadorApi {
   dismissJob(id: string): Promise<void>
   listJobs(): Promise<Job[]>
   onJobUpdate(callback: (job: Job) => void): () => void
+  onJobRemoved(callback: (id: string) => void): () => void
 
   listHistory(): Promise<HistoryItem[]>
   removeHistory(id: string): Promise<void>
@@ -111,6 +126,10 @@ export interface DescargadorApi {
   startDrag(filePath: string): void
 
   readClipboardUrl(): Promise<string | null>
+  onCommand(callback: (command: AppCommand) => void): () => void
+  /** Solo macOS: abrir la app al iniciar sesión. */
+  getOpenAtLogin(): Promise<boolean>
+  setOpenAtLogin(enabled: boolean): Promise<boolean>
   engineInfo(): Promise<EngineInfo>
   updateEngine(): Promise<EngineUpdateResult>
   appVersion(): Promise<string>

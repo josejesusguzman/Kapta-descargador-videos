@@ -1,5 +1,5 @@
 # Instaladores de Windows (NSIS por usuario para x64 y ARM64). Se ejecuta a mano desde la pestaña
-# Actions o al publicar un tag v*. Los instaladores quedan como artefacto de la ejecución.
+# Actions o al publicar un tag v*. Cada instalador queda como un artefacto propio de la ejecución.
 name: Build Windows
 
 on:
@@ -24,8 +24,18 @@ jobs:
         run: npm run build:win:x64
       - name: Build instalador ARM64
         run: npm run build:win:arm64
+      # Un artefacto por arquitectura: x64 = PCs Intel/AMD, arm64 = Windows en ARM (Snapdragon).
       - uses: actions/upload-artifact@v4
         with:
-          name: Descargador-Windows
-          path: dist/*.exe
+          name: Descargador-Windows-x64
+          path: dist/*-x64.exe
           if-no-files-found: error
+          # El instalador ya va comprimido.
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Descargador-Windows-arm64
+          path: dist/*-arm64.exe
+          if-no-files-found: error
+          # El instalador ya va comprimido.
+          compression-level: 0

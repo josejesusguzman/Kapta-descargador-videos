@@ -9,7 +9,7 @@ import { download, UserError } from './ytdlp'
 
 const CONCURRENCY = 2
 
-export class JobQueue extends EventEmitter<{ update: [Job]; done: [Job]; history: [] }> {
+export class JobQueue extends EventEmitter<{ update: [Job]; done: [Job]; failed: [Job]; removed: [string]; history: [] }> {
   private jobs = new Map<string, Job>()
   private controllers = new Map<string, AbortController>()
   private lastEmit = new Map<string, number>()
@@ -60,7 +60,10 @@ export class JobQueue extends EventEmitter<{ update: [Job]; done: [Job]; history
 
   dismiss(id: string): void {
     const job = this.jobs.get(id)
-    if (job && !['downloading', 'processing'].includes(job.status)) this.jobs.delete(id)
+    if (job && !['downloading', 'processing'].includes(job.status)) {
+      this.jobs.delete(id)
+      this.emit('removed', id)
+    }
   }
 
   private pump(): void {
@@ -123,6 +126,7 @@ export class JobQueue extends EventEmitter<{ update: [Job]; done: [Job]; history
       } else {
         const message = err instanceof UserError ? err.message : `Error inesperado: ${(err as Error).message}`
         this.patch(job, { status: 'error', stage: 'Error', error: message, speed: undefined, eta: undefined }, true)
+        this.emit('failed', job)
       }
     } finally {
       this.controllers.delete(job.id)

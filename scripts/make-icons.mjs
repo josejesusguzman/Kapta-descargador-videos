@@ -5,6 +5,7 @@
 //   build/icon.png            -> ícono de macOS (1024 px con el margen de la plantilla de Apple; electron-builder genera el .icns)
 //   resources/icons/icon.png  -> ventana y notificaciones
 //   resources/icons/drag.png  -> ícono al arrastrar un archivo
+//   resources/icons/trayTemplate{,@2x}.png -> barra de menú de macOS (plantilla: negro + alfa, macOS la tiñe)
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { deflateSync } from 'node:zlib'
@@ -70,6 +71,29 @@ function render(size, { margin = 1 } = {}) {
       px[i + 1] = Math.round(g)
       px[i + 2] = Math.round(b)
       px[i + 3] = Math.round(box * 255)
+    }
+  }
+  return px
+}
+
+/** Versión monocroma para la barra de menú: el cuadro en negro con la flecha calada (transparente). */
+function renderTemplate(size, { margin = 1 } = {}) {
+  const k = 32 / size
+  const px = Buffer.alloc(size * size * 4)
+  const half = 16 - margin
+  const radius = 7.5 * (half / 15)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const ux = (x + 0.5) * k
+      const uy = (y + 0.5) * k
+      const box = clamp(0.5 - sdRoundRect(ux, uy, 16, 16, half, half, radius) / k, 0, 1)
+      if (box <= 0) continue
+      let ink = 0
+      for (const s of SEGMENTS) {
+        const w = Math.max(STROKE / 2, 0.6 * k)
+        ink = Math.max(ink, clamp(0.5 - (sdSegment(ux, uy, ...s) - w) / k, 0, 1))
+      }
+      px[(y * size + x) * 4 + 3] = Math.round(box * (1 - ink) * 255)
     }
   }
   return px
@@ -149,4 +173,7 @@ writeFileSync(path.join(root, 'build', 'icon.ico'), ico(images))
 writeFileSync(path.join(root, 'build', 'icon.png'), png(1024, render(1024, { margin: 3.2 })))
 writeFileSync(path.join(root, 'resources', 'icons', 'icon.png'), png(256, render(256)))
 writeFileSync(path.join(root, 'resources', 'icons', 'drag.png'), png(64, render(64, { margin: 2 })))
-console.log('✓ Íconos generados: build/icon.ico, build/icon.png, resources/icons/{icon,drag}.png')
+// 16 pt de alto (32 px en Retina), como los demás íconos de la barra de menú.
+writeFileSync(path.join(root, 'resources', 'icons', 'trayTemplate.png'), png(16, renderTemplate(16, { margin: 1.5 })))
+writeFileSync(path.join(root, 'resources', 'icons', 'trayTemplate@2x.png'), png(32, renderTemplate(32, { margin: 1.5 })))
+console.log('✓ Íconos generados: build/icon.ico, build/icon.png, resources/icons/{icon,drag,trayTemplate,trayTemplate@2x}.png')

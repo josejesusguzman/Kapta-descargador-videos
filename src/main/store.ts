@@ -34,7 +34,9 @@ function defaults(): Settings {
     cookiesBrowser: 'none',
     autoUpdateEngine: true,
     lastEngineCheck: 0,
-    onboardingDone: false
+    onboardingDone: false,
+    menuBar: true,
+    loginItem: ''
   }
 }
 
@@ -62,6 +64,8 @@ export function updateSettings(patch: Partial<Settings>): Settings {
   if (typeof patch.autoUpdateEngine === 'boolean') s.autoUpdateEngine = patch.autoUpdateEngine
   if (typeof patch.lastEngineCheck === 'number') s.lastEngineCheck = patch.lastEngineCheck
   if (typeof patch.onboardingDone === 'boolean') s.onboardingDone = patch.onboardingDone
+  if (typeof patch.menuBar === 'boolean') s.menuBar = patch.menuBar
+  if (typeof patch.loginItem === 'string') s.loginItem = patch.loginItem
   settings = s
   writeJson(settingsFile(), s)
   return s
@@ -129,6 +133,23 @@ export function removeHistory(id: string): void {
     rmSync(thumbPath(id), { force: true })
     writeJson(historyFile(), list)
   }
+}
+
+/** Últimas descargas cuyo archivo sigue en su lugar (sin leer las miniaturas, para el menú de macOS). */
+export function recentHistory(limit: number): HistoryItem[] {
+  const recent: HistoryItem[] = []
+  for (const h of loadHistory()) {
+    if (recent.length >= limit) break
+    if (existsSync(h.filePath)) recent.push(h)
+  }
+  return recent
+}
+
+/** Miniatura de una entrada del historial como imagen nativa, o undefined si no tiene. */
+export function historyThumb(item: HistoryItem): Electron.NativeImage | undefined {
+  if (!item.thumbnail) return undefined
+  const img = nativeImage.createFromPath(thumbPath(item.id))
+  return img.isEmpty() ? undefined : img
 }
 
 export function historyHas(filePath: string): boolean {

@@ -50,9 +50,13 @@ interface Encoder {
 const bitrate = (h: number): string => (h >= 2000 ? '45M' : h >= 1400 ? '24M' : h >= 1000 ? '12M' : h >= 700 ? '7M' : '4M')
 
 // En orden de preferencia. Windows: GPU NVIDIA, Intel, AMD, Media Foundation (incluye Qualcomm/ARM) y CPU.
-// macOS: VideoToolbox (Apple Silicon e Intel) y CPU.
+// macOS: VideoToolbox (Apple Silicon e Intel) y CPU. Linux: GPU NVIDIA, VA-API (Intel/AMD) y CPU.
 const ENCODERS: Encoder[] = process.platform === 'darwin' ? [
   { name: 'h264_videotoolbox', args: (h) => ['-c:v', 'h264_videotoolbox', '-allow_sw', '1', '-b:v', bitrate(h), '-pix_fmt', 'yuv420p'] },
+  { name: 'libx264', args: () => ['-c:v', 'libx264', '-preset', 'faster', '-crf', '18', '-pix_fmt', 'yuv420p'] }
+] : process.platform === 'linux' ? [
+  { name: 'h264_nvenc', args: () => ['-c:v', 'h264_nvenc', '-preset', 'p5', '-rc', 'vbr', '-cq', '19', '-b:v', '0', '-pix_fmt', 'yuv420p'] },
+  { name: 'h264_vaapi', args: () => ['-vaapi_device', '/dev/dri/renderD128', '-vf', 'format=nv12,hwupload', '-c:v', 'h264_vaapi', '-qp', '20'] },
   { name: 'libx264', args: () => ['-c:v', 'libx264', '-preset', 'faster', '-crf', '18', '-pix_fmt', 'yuv420p'] }
 ] : [
   { name: 'h264_nvenc', args: () => ['-c:v', 'h264_nvenc', '-preset', 'p5', '-rc', 'vbr', '-cq', '19', '-b:v', '0', '-pix_fmt', 'yuv420p'] },

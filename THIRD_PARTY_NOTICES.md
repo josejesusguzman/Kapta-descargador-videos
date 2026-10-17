@@ -8,8 +8,9 @@ Descargador incluye los siguientes componentes de terceros:
 
 ## FFmpeg (ffmpeg y ffprobe; en Windows también sus bibliotecas compartidas)
 - Windows: compilación GPL de https://github.com/yt-dlp/FFmpeg-Builds
+- Linux: compilación estática GPL de https://github.com/yt-dlp/FFmpeg-Builds
 - macOS: compilación estática GPL de https://ffmpeg.martin-riedl.de
-- Licencia: GNU General Public License v3 (en Windows, texto completo en `bin/FFMPEG_LICENSE.txt`; también en https://www.gnu.org/licenses/gpl-3.0.html)
+- Licencia: GNU General Public License v3 (en Windows y Linux, texto completo en `bin/FFMPEG_LICENSE.txt`; también en https://www.gnu.org/licenses/gpl-3.0.html)
 - Código fuente: https://ffmpeg.org/download.html y scripts de compilación en https://github.com/yt-dlp/FFmpeg-Builds y https://git.martin-riedl.de/ffmpeg/build-script
 
 ## Electron

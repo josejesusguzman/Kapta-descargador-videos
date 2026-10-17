@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { DescargadorApi, Job } from '@shared/types'
+import type { AppCommand, DescargadorApi, Job } from '@shared/types'
 
 type Envelope<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -16,6 +16,14 @@ function subscribe<T extends unknown[]>(channel: string, cb: (...args: T) => voi
   return () => ipcRenderer.removeListener(channel, listener)
 }
 
+// Órdenes del menú de macOS. Al abrir la ventana desde el menú llegan antes de que React se suscriba: se guardan.
+const pendingCommands: AppCommand[] = []
+let commandListener: ((command: AppCommand) => void) | null = null
+ipcRenderer.on('app:command', (_e, command: AppCommand) => {
+  if (commandListener) commandListener(command)
+  else pendingCommands.push(command)
+})
+
 const api: DescargadorApi = {
   platform: process.platform,
   analyze: (url) => call('media:analyze', url),
@@ -25,6 +33,7 @@ const api: DescargadorApi = {
   dismissJob: (id) => call('jobs:dismiss', id),
   listJobs: () => call('jobs:list'),
   onJobUpdate: (cb) => subscribe<[Job]>('jobs:update', cb),
+  onJobRemoved: (cb) => subscribe<[string]>('jobs:removed', cb),
 
   listHistory: () => call('history:list'),
   removeHistory: (id) => call('history:remove', id),
@@ -40,6 +49,15 @@ const api: DescargadorApi = {
   startDrag: (p) => ipcRenderer.send('file:drag', p),
 
   readClipboardUrl: () => call('clipboard:url'),
+  onCommand: (cb) => {
+    commandListener = cb
+    for (const command of pendingCommands.splice(0)) cb(command)
+    return () => {
+      if (commandListener === cb) commandListener = null
+    }
+  },
+  getOpenAtLogin: () => call('app:getOpenAtLogin'),
+  setOpenAtLogin: (enabled) => call('app:setOpenAtLogin', enabled),
   engineInfo: () => call('engine:info'),
   updateEngine: () => call('engine:update'),
   appVersion: () => call('app:version')

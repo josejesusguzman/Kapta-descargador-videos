@@ -38,10 +38,11 @@ function Chip({ active, onClick, label, hint }: { active: boolean; onClick(): vo
   )
 }
 
-/** "C:\Users\ana\Videos\Descargador" -> "…\Videos\Descargador" */
+/** "C:\Users\ana\Videos\Descargador" -> "…\Videos\Descargador"; en macOS y Linux, con "/". */
 function shortPath(dir: string): string {
+  const sep = dir.includes('\\') ? '\\' : '/'
   const parts = dir.split(/[\\/]/).filter(Boolean)
-  return parts.length > 3 ? `…\\${parts.slice(-2).join('\\')}` : dir
+  return parts.length > 3 ? `…${sep}${parts.slice(-2).join(sep)}` : dir
 }
 
 export function MediaCard(p: Props) {
