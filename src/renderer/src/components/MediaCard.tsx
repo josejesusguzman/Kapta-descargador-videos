@@ -38,7 +38,7 @@ function Chip({ active, onClick, label, hint }: { active: boolean; onClick(): vo
   )
 }
 
-/** "C:\Users\ana\Videos\Descargador" -> "…\Videos\Descargador"; en macOS y Linux, con "/". */
+/** "C:\Users\ana\Videos\Kapta Descargador" -> "…\Videos\Kapta Descargador"; en macOS y Linux, con "/". */
 function shortPath(dir: string): string {
   const sep = dir.includes('\\') ? '\\' : '/'
   const parts = dir.split(/[\\/]/).filter(Boolean)

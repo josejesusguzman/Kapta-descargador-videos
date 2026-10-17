@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppCommand, DescargadorApi, Job } from '@shared/types'
+import type { AppCommand, KaptaDescargadorApi, Job } from '@shared/types'
 
 type Envelope<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -24,7 +24,7 @@ ipcRenderer.on('app:command', (_e, command: AppCommand) => {
   else pendingCommands.push(command)
 })
 
-const api: DescargadorApi = {
+const api: KaptaDescargadorApi = {
   platform: process.platform,
   analyze: (url) => call('media:analyze', url),
   addJob: (request) => call('jobs:add', request),

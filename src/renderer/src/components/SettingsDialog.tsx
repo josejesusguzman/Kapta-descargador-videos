@@ -162,7 +162,7 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
               <div className="divide-y divide-line">
                 <Row
                   label="Mostrar en la barra de menú"
-                  hint="Descarga el link que copiaste sin abrir la ventana y ve el progreso arriba. Al cerrar la ventana, Descargador sigue ahí y las descargas continúan."
+                  hint="Descarga el link que copiaste sin abrir la ventana y ve el progreso arriba. Al cerrar la ventana, Kapta Descargador sigue ahí y las descargas continúan."
                 >
                   <input
                     type="checkbox"
@@ -226,7 +226,7 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
               telemetría: la app solo se conecta a la plataforma del link que pegas. Descarga únicamente contenido propio o
               que tengas permiso de usar, y respeta los derechos de autor y los términos de cada plataforma.
               <span className="mt-2 block text-faint">
-                Descargador {version} · Usa yt-dlp y FFmpeg (licencias incluidas en la carpeta de la app).
+                Kapta Descargador {version} · Usa yt-dlp y FFmpeg (licencias incluidas en la carpeta de la app).
               </span>
             </p>
           </div>

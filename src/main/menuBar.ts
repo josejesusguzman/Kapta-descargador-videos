@@ -276,12 +276,12 @@ async function buildMenu(): Promise<Menu> {
   items.push(
     { type: 'separator' },
     { label: 'Abrir carpeta de descargas', click: () => ctx.openOutputDir() },
-    { label: 'Mostrar Descargador', click: () => ctx.showWindow() },
+    { label: 'Mostrar Kapta Descargador', click: () => ctx.showWindow() },
     { type: 'separator' },
     { label: 'Abrir al iniciar sesión', type: 'checkbox', checked: getOpenAtLogin(), click: (item) => setOpenAtLogin(item.checked) },
     { label: 'Ajustes…', accelerator: 'Cmd+,', click: () => ctx.showWindow({ type: 'settings' }) },
     { type: 'separator' },
-    { label: 'Salir de Descargador', accelerator: 'Cmd+Q', click: () => app.quit() }
+    { label: 'Salir de Kapta Descargador', accelerator: 'Cmd+Q', click: () => app.quit() }
   )
   return Menu.buildFromTemplate(items)
 }
@@ -300,7 +300,7 @@ function refresh(): void {
     tray.setTitle(title && ` ${title}`, { fontType: 'monospacedDigit' })
   }
   const count = active.length + waiting
-  const tooltip = count ? `Descargador · ${count} ${count === 1 ? 'descarga' : 'descargas'} en curso` : 'Descargador'
+  const tooltip = count ? `Kapta Descargador · ${count} ${count === 1 ? 'descarga' : 'descargas'} en curso` : 'Kapta Descargador'
   if (tooltip !== lastTooltip) {
     lastTooltip = tooltip
     tray.setToolTip(tooltip)
@@ -356,12 +356,12 @@ export function windowClosedToMenuBar(): void {
   const busy = ctx.queue.list().some((j) => isActive(j) || j.status === 'queued')
   if (closeHintShown || !busy) return
   closeHintShown = true
-  notify('Descargador sigue en la barra de menú', 'Tus descargas continúan. Ábrelo desde el ícono de arriba.', {
+  notify('Kapta Descargador sigue en la barra de menú', 'Tus descargas continúan. Ábrelo desde el ícono de arriba.', {
     onClick: () => ctx.showWindow()
   })
 }
 
-/** /Applications/Descargador.app */
+/** /Applications/Kapta Descargador.app */
 const bundlePath = (): string => resolve(process.execPath, '..', '..', '..')
 const loginItemId = (): string => `${bundlePath()}@${app.getVersion()}`
 
@@ -378,7 +378,7 @@ export function setOpenAtLogin(enabled: boolean): boolean {
   // Registrarla desde el DMG o desde una copia temporal de macOS apuntaría a una ruta que luego desaparece.
   if (enabled && !app.isInApplicationsFolder()) {
     ask(
-      'Primero mueve Descargador a Aplicaciones',
+      'Primero mueve Kapta Descargador a Aplicaciones',
       'Para abrirse al iniciar sesión, la app tiene que estar en la carpeta Aplicaciones. Arrástrala ahí desde el DMG y ábrela desde Aplicaciones.',
       'Entendido'
     )
@@ -391,7 +391,7 @@ export function setOpenAtLogin(enabled: boolean): boolean {
   // (o el sistema pide aprobarla) y solo se puede activar ahí.
   if (enabled && !on) {
     const open = ask(
-      'Permite que Descargador se abra al iniciar sesión',
+      'Permite que Kapta Descargador se abra al iniciar sesión',
       'Actívalo en Ajustes del Sistema → General → Ítems de inicio.',
       'Abrir Ajustes del Sistema'
     )

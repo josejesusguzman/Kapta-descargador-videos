@@ -128,7 +128,7 @@ export interface DownloadCallbacks {
 }
 
 /** Carpeta raíz de temporales de descarga (una subcarpeta por descarga). */
-const tempRoot = (): string => join(app.getPath('temp'), 'Descargador')
+const tempRoot = (): string => join(app.getPath('temp'), 'Kapta Descargador')
 
 /** Al iniciar no hay descargas activas: lo que quede en temporales es de una sesión interrumpida. */
 export function cleanTempRoot(): void {

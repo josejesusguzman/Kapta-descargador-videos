@@ -14,11 +14,11 @@ import {
   windowClosedToMenuBar
 } from './menuBar'
 import { JobQueue } from './queue'
-import { dragIconFor, getSettings, historyHas, listHistory, removeHistory, updateSettings } from './store'
+import { dragIconFor, getSettings, historyHas, listHistory, migrateFromOldName, removeHistory, updateSettings } from './store'
 import { analyze, cleanTempRoot, updateEngine, UserError } from './ytdlp'
 import { isMediaFile } from './ytdlpArgs'
 
-const APP_ID = 'com.descargador.app'
+const APP_ID = 'com.kapta.descargador'
 const isMac = process.platform === 'darwin'
 const WEEK = 7 * 24 * 60 * 60 * 1000
 
@@ -42,7 +42,7 @@ function createWindow(): void {
     minHeight: 560,
     show: false,
     backgroundColor: '#0d0e12',
-    title: 'Descargador',
+    title: 'Kapta Descargador',
     icon: iconPath('icon.png'),
     // Windows y Linux dibujan sus botones sobre la barra propia (titleBarOverlay); macOS, los semáforos.
     ...(isMac
@@ -316,6 +316,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
+    migrateFromOldName()
     hardenSecurity()
     ensureEngine()
     cleanTempRoot()

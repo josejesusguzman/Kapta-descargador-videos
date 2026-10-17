@@ -27,7 +27,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Los instaladores llevan la versión del release (p. ej. Descargador-0.2.0-arm64.dmg).
+      # Los instaladores llevan la versión del release (p. ej. Windows-Kapta-Descargador-Setup-0.3.0-x64.exe).
       - name: Versión ${{ inputs.version }}
         if: inputs.version != ''
         shell: bash
@@ -44,15 +44,19 @@ jobs:
       # Un artefacto por arquitectura: x64 = PCs Intel/AMD, arm64 = Windows en ARM (Snapdragon).
       - uses: actions/upload-artifact@v4
         with:
-          name: Descargador-Windows-x64
+          name: Kapta-Descargador-Windows-x64
           path: dist/*-x64.exe
           if-no-files-found: error
           # El instalador ya va comprimido.
           compression-level: 0
+          # Al re-ejecutar un job, reemplaza el artefacto anterior en vez de fallar.
+          overwrite: true
       - uses: actions/upload-artifact@v4
         with:
-          name: Descargador-Windows-arm64
+          name: Kapta-Descargador-Windows-arm64
           path: dist/*-arm64.exe
           if-no-files-found: error
           # El instalador ya va comprimido.
           compression-level: 0
+          # Al re-ejecutar un job, reemplaza el artefacto anterior en vez de fallar.
+          overwrite: true
