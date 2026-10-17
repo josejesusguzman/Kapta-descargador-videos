@@ -10,6 +10,7 @@ Kapta Descargador funciona en **Windows 10/11**, **macOS 13 (Ventura) o más nue
 |---|---|---|
 | Windows con procesador Intel o AMD (la mayoría) | [Instalador de Windows](#windows) | `Windows-Kapta-Descargador-Setup-<versión>-x64.exe` |
 | Windows en ARM (Snapdragon, Surface Pro X…) | [Instalador de Windows](#windows) | `Windows-Kapta-Descargador-Setup-<versión>-arm64.exe` |
+| Windows 10/11, desde la terminal | [winget](#windows-con-winget) | — (winget lo descarga por ti) |
 | Mac con chip Apple (M1, M2, M3, M4…) | [DMG de macOS](#macos) | `macOS-Kapta-Descargador-<versión>-arm64.dmg` |
 | Mac con procesador Intel | [DMG de macOS](#macos) | `macOS-Kapta-Descargador-<versión>-x64.dmg` |
 | Linux, cualquier distribución | [AppImage](#linux-appimage-cualquier-distribución) | `Linux-Kapta-Descargador-<versión>-x86_64.AppImage` (ARM: `-arm64.AppImage`) |
@@ -60,6 +61,26 @@ Listo: la app queda en el **Menú Inicio** y con un acceso directo en el **escri
 
 - **Actualizar:** descarga el instalador de la versión nueva y repite los pasos; se instala encima y conserva tus ajustes e historial.
 - **Desinstalar:** *Configuración → Aplicaciones → Aplicaciones instaladas →* **Kapta Descargador** *→ ⋯ → Desinstalar*. Tus ajustes quedan en `%APPDATA%\Kapta Descargador` por si la vuelves a instalar; bórrala a mano si no los quieres.
+
+### Windows con winget
+
+[winget](https://learn.microsoft.com/windows/package-manager/winget/) es el instalador de apps por línea de comandos que ya trae Windows 10 (1809 o más nuevo) y Windows 11. Instala la misma app que el instalador de arriba, pero **sin el aviso de SmartScreen** y elige solo la versión correcta para tu procesador (x64 o ARM).
+
+> **Disponibilidad:** cada versión nueva se envía al catálogo de winget y Microsoft la revisa antes de publicarla (la primera vez puede tardar varios días). Si `winget search kapta` no muestra nada todavía, usa el [instalador de Windows](#windows) mientras tanto.
+
+1. Abre **Terminal** (o **PowerShell**): clic derecho en el botón Inicio → **Terminal**. No hace falta abrirla como administrador.
+2. Instala la app:
+   ```powershell
+   winget install --id josejesusguzman.KaptaDescargador -e
+   ```
+   La primera vez que usas winget te pide aceptar los términos de los orígenes: escribe `Y` y pulsa Enter.
+3. Cuando diga **Instalado correctamente**, busca **Kapta Descargador** en el Menú Inicio.
+
+Si Windows dice que `winget` no se reconoce como comando, instala o actualiza **Instalador de aplicación** desde la Microsoft Store y abre una terminal nueva.
+
+- **Actualizar:** `winget upgrade --id josejesusguzman.KaptaDescargador -e` (o `winget upgrade --all` para actualizar todas tus apps).
+- **Desinstalar:** `winget uninstall --id josejesusguzman.KaptaDescargador -e`.
+- **Ver la versión disponible:** `winget show --id josejesusguzman.KaptaDescargador -e`.
 
 ### macOS
 
@@ -238,7 +259,7 @@ Los tres workflows de build también se pueden lanzar a mano (pestaña *Actions*
 
 El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*): genera en `windows-latest` un artefacto por arquitectura (`Kapta-Descargador-Windows-x64` y `Kapta-Descargador-Windows-arm64`). **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
 
-**winget** (en preparación, todavía no disponible para usuarios): el workflow **Winget** envía los instaladores de Windows a [winget-pkgs](https://github.com/microsoft/winget-pkgs) como `josejesusguzman.KaptaDescargador` al hacer merge de un PR a main (o a mano desde *Actions* con el tag de un release). Necesita un token clásico de GitHub con el scope `public_repo` guardado como secret `WINGET_TOKEN`; con él abre un PR en `microsoft/winget-pkgs` desde un fork en tu cuenta, y los revisores de Microsoft lo validan antes de que el paquete aparezca.
+**winget**: al hacer merge de un PR a main, el workflow **Winget** envía los instaladores de Windows de su release a [winget-pkgs](https://github.com/microsoft/winget-pkgs) como `josejesusguzman.KaptaDescargador` (también se puede correr a mano desde *Actions* con el tag de un release). Necesita un token clásico de GitHub con el scope `public_repo` guardado como secret `WINGET_TOKEN`; con él abre un PR en `microsoft/winget-pkgs` desde un fork en tu cuenta, y los revisores de Microsoft lo validan antes de que la versión aparezca en `winget`. Ver [Windows con winget](#windows-con-winget) para las instrucciones de usuario.
 
 ### macOS
 

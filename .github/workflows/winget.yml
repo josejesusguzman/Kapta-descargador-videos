@@ -85,6 +85,7 @@ jobs:
           arm64=$(basename installers/*-arm64.exe)
 
           cat > "manifests/$PACKAGE_ID.yaml" <<EOF
+          # yaml-language-server: \$schema=https://aka.ms/winget-manifest.version.1.10.0.schema.json
           PackageIdentifier: $PACKAGE_ID
           PackageVersion: $VERSION
           DefaultLocale: es-MX
@@ -94,6 +95,7 @@ jobs:
 
           # NSIS por usuario (electron-builder): /S instala en silencio y sin permisos de administrador.
           cat > "manifests/$PACKAGE_ID.installer.yaml" <<EOF
+          # yaml-language-server: \$schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
           PackageIdentifier: $PACKAGE_ID
           PackageVersion: $VERSION
           InstallerType: nullsoft
@@ -116,6 +118,7 @@ jobs:
           EOF
 
           cat > "manifests/$PACKAGE_ID.locale.es-MX.yaml" <<EOF
+          # yaml-language-server: \$schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
           PackageIdentifier: $PACKAGE_ID
           PackageVersion: $VERSION
           PackageLocale: es-MX
@@ -146,8 +149,10 @@ jobs:
         if: steps.token.outputs.ok == 'true'
         shell: bash
         env:
-          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          # wingetcreate toma el token de esta variable (pasarlo con --token puede dejarlo en el log).
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           curl -fsSL -o wingetcreate.exe https://aka.ms/wingetcreate/latest
-          ./wingetcreate.exe submit --token "$WINGET_TOKEN" --prtitle "New version: $PACKAGE_ID version $VERSION" manifests
+          # Ruta de Windows: wingetcreate.exe no entiende las rutas de Git Bash (/d/a/...).
+          ./wingetcreate.exe submit --prtitle "New version: $PACKAGE_ID version $VERSION" "$(cygpath -w "$PWD/manifests")"
