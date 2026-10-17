@@ -1,0 +1,31 @@
+# Instaladores de Windows (NSIS por usuario para x64 y ARM64). Se ejecuta a mano desde la pestaña
+# Actions o al publicar un tag v*. Los instaladores quedan como artefacto de la ejecución.
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # El runner es x64: el instalador ARM64 se genera de forma cruzada (fetch-binaries toma la
+      # versión de yt-dlp del último release al no poder ejecutar yt-dlp_arm64.exe).
+      - name: Build instalador x64
+        run: npm run build:win:x64
+      - name: Build instalador ARM64
+        run: npm run build:win:arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Descargador-Windows
+          path: dist/*.exe
+          if-no-files-found: error
