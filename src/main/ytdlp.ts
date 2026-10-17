@@ -14,10 +14,21 @@ function engineOptions(cookiesBrowser: CookieBrowser): EngineOptions {
   return { ffmpegDir: ffmpegDir(), jsRuntimePath: jsRuntimePath(), cookiesBrowser }
 }
 
-/** Cierra yt-dlp y sus hijos (ffmpeg, el runtime JS y el proceso interno de PyInstaller). */
+/**
+ * Cierra yt-dlp y sus hijos (ffmpeg, el runtime JS y el proceso interno de PyInstaller).
+ * En macOS se mata el grupo de procesos: yt-dlp se lanza con `detached` para tener uno propio.
+ */
 export function killTree(child: ChildProcess): void {
   if (child.pid === undefined || child.exitCode !== null) return
-  execFile('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => undefined)
+  if (process.platform === 'win32') {
+    execFile('taskkill', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, () => undefined)
+    return
+  }
+  try {
+    process.kill(-child.pid, 'SIGKILL')
+  } catch {
+    child.kill('SIGKILL')
+  }
 }
 
 interface RunResult {
@@ -33,7 +44,7 @@ function run(
 ): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     if (opts.signal?.aborted) return reject(new UserError('Cancelado'))
-    const child = spawn(ensureEngine(), args, { env: engineEnv(), windowsHide: true })
+    const child = spawn(ensureEngine(), args, { env: engineEnv(), windowsHide: true, detached: process.platform !== 'win32' })
     let stdout = ''
     let stderr = ''
     const pending = { out: '', err: '' }

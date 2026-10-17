@@ -1,5 +1,5 @@
 // Construcción de argumentos de yt-dlp. Módulo puro (sin Electron) para poder probarlo.
-import { win32 } from 'node:path'
+import { posix, win32 } from 'node:path'
 import type { CookieBrowser, DownloadRequest } from '@shared/types'
 
 export interface EngineOptions {
@@ -29,9 +29,13 @@ export function isMediaFile(filePath: string): boolean {
 }
 
 /** `filePath` está dentro de `dir` (o en una subcarpeta). Rutas de Windows: sin distinguir mayúsculas. */
-export function isInsideDir(filePath: string, dir: string): boolean {
-  const rel = win32.relative(win32.resolve(dir), win32.resolve(filePath))
-  return !!rel && !rel.startsWith('..') && !win32.isAbsolute(rel)
+export function isInsideDir(
+  filePath: string,
+  dir: string,
+  paths: typeof win32 = process.platform === 'win32' ? win32 : posix
+): boolean {
+  const rel = paths.relative(paths.resolve(dir), paths.resolve(filePath))
+  return !!rel && !rel.startsWith('..') && !paths.isAbsolute(rel)
 }
 
 export function commonArgs(opts: EngineOptions): string[] {

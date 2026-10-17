@@ -11,11 +11,12 @@ files:
   - package.json
   - '!**/*.map'
 
-# Binarios por arquitectura (npm run fetch-binaries -- --arch=x64|arm64) y recursos sueltos.
+# Binarios por sistema y arquitectura (npm run fetch-binaries -- --platform=win|mac --arch=x64|arm64)
+# y recursos sueltos.
 # Nota: yt-dlp usa el propio ejecutable como runtime JS (ELECTRON_RUN_AS_NODE), así que
 # el fuse "RunAsNode" de Electron debe seguir activado (es el valor por defecto).
 extraResources:
-  - from: resources/bin/${arch}
+  - from: resources/bin/${os}-${arch}
     to: bin
   - from: resources/icons
     to: icons
@@ -43,3 +44,37 @@ nsis:
   language: '3082'
   artifactName: ${productName}-Setup-${version}-${arch}.${ext}
   deleteAppDataOnUninstall: false
+
+# macOS: un DMG por arquitectura (Apple Silicon e Intel), compilado con el SDK del runner más reciente
+# y compatible desde macOS 12 (mínimo de Electron).
+mac:
+  target:
+    - target: dmg
+  icon: build/icon.png
+  category: public.app-category.video
+  minimumSystemVersion: '12.0'
+  darkModeSupport: true
+  # Sin certificado Developer ID: firma ad-hoc. Para firmar y notarizar: quitar `identity`, definir
+  # CSC_LINK / CSC_KEY_PASSWORD y APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID y poner
+  # `notarize: true` (ver README).
+  identity: '-'
+  hardenedRuntime: true
+  # Con firma ad-hoc, hardened runtime exige disable-library-validation (ver el plist).
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # yt-dlp_macos (PyInstaller) ya viene firmado: volver a firmarlo puede dañarlo.
+  signIgnore:
+    - 'Resources/bin/yt-dlp$'
+  notarize: false
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+dmg:
+  title: ${productName} ${version}
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  contents:
+    - x: 140
+      y: 190
+    - x: 400
+      y: 190
+      type: link
+      path: /Applications

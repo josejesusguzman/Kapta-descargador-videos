@@ -87,6 +87,8 @@ export interface EngineUpdateResult {
 
 /** API expuesta al renderer por el preload (window.api). */
 export interface DescargadorApi {
+  /** Sistema operativo (process.platform): 'win32', 'darwin'… */
+  platform: string
   analyze(url: string): Promise<MediaInfo>
   addJob(request: DownloadRequest): Promise<Job>
   cancelJob(id: string): Promise<void>
