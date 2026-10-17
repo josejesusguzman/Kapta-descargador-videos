@@ -1,0 +1,153 @@
+# Publica en winget (microsoft/winget-pkgs) los instaladores de Windows de un release: al hacer merge de un PR a
+# main (su release ya no cambia) o a mano desde la pestaña Actions con el tag del release.
+# Abre el PR a winget-pkgs con wingetcreate usando el secret WINGET_TOKEN (PAT clásico con el scope public_repo);
+# sin ese secret el job se salta. Los revisores de Microsoft lo validan y lo publican en uno o dos días.
+name: Winget
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag del release a publicar (p. ej. 0.3).
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_ID: josejesusguzman.Descargador
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  winget:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: windows-latest
+    steps:
+      - name: Comprobar WINGET_TOKEN
+        id: token
+        shell: bash
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [ -z "$WINGET_TOKEN" ]; then
+            echo "::warning::Falta el secret WINGET_TOKEN: no se publica en winget."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Release a publicar
+        if: steps.token.outputs.ok == 'true'
+        id: release
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          tag=$INPUT_TAG
+          if [ -z "$tag" ]; then
+            # El release del PR lleva este marcador en las notas (ver pr-release.yml).
+            marker="<!-- descargador-pr: $PR -->"
+            tag=$(gh api "repos/$GH_REPO/releases?per_page=100" --paginate \
+              --jq ".[] | select(.draft | not) | select((.body // \"\") | contains(\"$marker\")) | .tag_name" | head -n1)
+            if [ -z "$tag" ]; then echo "::error::El PR #$PR no tiene un release publicado"; exit 1; fi
+          fi
+
+          # Misma conversión que pr-release.yml: 0.2 → 0.2.0, v3 → 3.0.0.
+          IFS=. read -r major minor patch _ <<< "${tag#v}"
+          version="${major}.${minor:-0}.${patch:-0}"
+          date=$(gh release view "$tag" --json publishedAt --jq '.publishedAt[:10]')
+          echo "Release $tag → versión $version ($date)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+
+      - name: Manifiestos
+        if: steps.token.outputs.ok == 'true'
+        shell: bash
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+          DATE: ${{ steps.release.outputs.date }}
+        run: |
+          mkdir -p installers manifests
+          gh release download "$TAG" --dir installers --pattern '*-x64.exe' --pattern '*-arm64.exe'
+          ls -l installers
+
+          url() { echo "https://github.com/$GH_REPO/releases/download/$TAG/$1"; }
+          sha() { sha256sum "installers/$1" | cut -d' ' -f1 | tr a-f A-F; }
+          x64=$(basename installers/*-x64.exe)
+          arm64=$(basename installers/*-arm64.exe)
+
+          cat > "manifests/$PACKAGE_ID.yaml" <<EOF
+          PackageIdentifier: $PACKAGE_ID
+          PackageVersion: $VERSION
+          DefaultLocale: es-MX
+          ManifestType: version
+          ManifestVersion: 1.10.0
+          EOF
+
+          # NSIS por usuario (electron-builder): /S instala en silencio y sin permisos de administrador.
+          cat > "manifests/$PACKAGE_ID.installer.yaml" <<EOF
+          PackageIdentifier: $PACKAGE_ID
+          PackageVersion: $VERSION
+          InstallerType: nullsoft
+          Scope: user
+          InstallModes:
+            - interactive
+            - silent
+            - silentWithProgress
+          UpgradeBehavior: install
+          ReleaseDate: $DATE
+          Installers:
+            - Architecture: x64
+              InstallerUrl: $(url "$x64")
+              InstallerSha256: $(sha "$x64")
+            - Architecture: arm64
+              InstallerUrl: $(url "$arm64")
+              InstallerSha256: $(sha "$arm64")
+          ManifestType: installer
+          ManifestVersion: 1.10.0
+          EOF
+
+          cat > "manifests/$PACKAGE_ID.locale.es-MX.yaml" <<EOF
+          PackageIdentifier: $PACKAGE_ID
+          PackageVersion: $VERSION
+          PackageLocale: es-MX
+          Publisher: josejesusguzman
+          PublisherUrl: https://github.com/josejesusguzman
+          PublisherSupportUrl: https://github.com/$GH_REPO/issues
+          PackageName: Descargador
+          PackageUrl: https://github.com/$GH_REPO
+          License: MIT
+          LicenseUrl: https://github.com/$GH_REPO/blob/main/LICENSE
+          ShortDescription: Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.
+          Moniker: descargador
+          Tags:
+            - video
+            - audio
+            - descargar
+            - yt-dlp
+            - youtube
+            - tiktok
+          ReleaseNotesUrl: https://github.com/$GH_REPO/releases/tag/$TAG
+          ManifestType: defaultLocale
+          ManifestVersion: 1.10.0
+          EOF
+
+          for f in manifests/*.yaml; do echo "--- $f"; cat "$f"; done
+
+      - name: Enviar a winget-pkgs
+        if: steps.token.outputs.ok == 'true'
+        shell: bash
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          curl -fsSL -o wingetcreate.exe https://aka.ms/wingetcreate/latest
+          ./wingetcreate.exe submit --token "$WINGET_TOKEN" --prtitle "New version: $PACKAGE_ID version $VERSION" manifests

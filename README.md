@@ -52,6 +52,14 @@ Los tres workflows de build también se pueden lanzar a mano (pestaña *Actions*
 
 El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*): genera en `windows-latest` un artefacto por arquitectura (`Descargador-Windows-x64` y `Descargador-Windows-arm64`). **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
 
+**winget**: cada PR a main que se hace merge publica sus instaladores de Windows en [winget](https://github.com/microsoft/winget-pkgs) con el workflow **Winget** (también se puede correr a mano desde *Actions* con el tag de un release). Instalado así no aparece el aviso de SmartScreen:
+
+```
+winget install josejesusguzman.Descargador
+```
+
+Para que funcione, crea un token clásico de GitHub con el scope `public_repo` y guárdalo como secret `WINGET_TOKEN`: el workflow abre con él un PR en `microsoft/winget-pkgs` desde un fork en tu cuenta. Los revisores de Microsoft lo validan antes de que el paquete aparezca (la primera vez suele tardar más).
+
 ### macOS
 
 - Un DMG por arquitectura (Apple Silicon e Intel), compatible desde **macOS 13** (Ventura, el mínimo de Electron 44); se arrastra la app a Aplicaciones.
