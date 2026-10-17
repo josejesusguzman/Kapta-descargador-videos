@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 env:
-  PACKAGE_ID: josejesusguzman.Descargador
+  PACKAGE_ID: josejesusguzman.KaptaDescargador
   GH_TOKEN: ${{ github.token }}
   GH_REPO: ${{ github.repository }}
 
@@ -52,7 +52,7 @@ jobs:
           tag=$INPUT_TAG
           if [ -z "$tag" ]; then
             # El release del PR lleva este marcador en las notas (ver pr-release.yml).
-            marker="<!-- descargador-pr: $PR -->"
+            marker="<!-- kapta-descargador-pr: $PR -->"
             tag=$(gh api "repos/$GH_REPO/releases?per_page=100" --paginate \
               --jq ".[] | select(.draft | not) | select((.body // \"\") | contains(\"$marker\")) | .tag_name" | head -n1)
             if [ -z "$tag" ]; then echo "::error::El PR #$PR no tiene un release publicado"; exit 1; fi
@@ -122,12 +122,12 @@ jobs:
           Publisher: josejesusguzman
           PublisherUrl: https://github.com/josejesusguzman
           PublisherSupportUrl: https://github.com/$GH_REPO/issues
-          PackageName: Descargador
+          PackageName: Kapta Descargador
           PackageUrl: https://github.com/$GH_REPO
           License: MIT
           LicenseUrl: https://github.com/$GH_REPO/blob/main/LICENSE
           ShortDescription: Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.
-          Moniker: descargador
+          Moniker: kapta-descargador
           Tags:
             - video
             - audio

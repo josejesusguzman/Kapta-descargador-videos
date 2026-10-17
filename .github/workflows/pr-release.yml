@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 
-# Un push nuevo al mismo PR cancela la corrida anterior.
+# Un push nuevo al mismo PR cancela la corrida anterior (el tag y el release del PR se reutilizan).
 concurrency:
   group: pr-release-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -19,9 +19,11 @@ concurrency:
 env:
   PR: ${{ github.event.pull_request.number }}
   SHA: ${{ github.event.pull_request.head.sha }}
-  # Un PR desde un fork recibe un token de solo lectura: compila, pero no reserva tag ni publica release.
-  SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-  GH_TOKEN: ${{ github.token }}
+  # Los PR desde un fork o de Dependabot reciben un token de solo lectura: compilan, pero sin tag ni release.
+  SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' }}
+  # RELEASE_TOKEN (opcional): token fine-grained de este repo con Contents y Workflows en "Read and write", por si
+  # GitHub rechaza crear o mover el tag con el token del workflow en commits que cambian .github/workflows.
+  GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
   GH_REPO: ${{ github.repository }}
 
 jobs:
@@ -33,17 +35,19 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
+      publish: ${{ steps.tag.outputs.publish }}
     steps:
       - name: Tag del release de este PR
         id: tag
         shell: bash
         run: |
-          marker="<!-- descargador-pr: $PR -->"
+          marker="<!-- kapta-descargador-pr: $PR -->"
 
-          # Siguiente número: el tag numérico más alto (0.1, 0.10, v2…) + 1 en su último componente.
+          # Siguiente número: el tag numérico más alto (0.1, 0.10, v2…) + 1 en su último componente. Por stdin
+          # recibe los números ya intentados en esta corrida, para que cada reintento avance.
           next_tag() {
             local latest prefix nums last head
-            latest=$(gh api "repos/$GH_REPO/git/matching-refs/tags" --paginate --jq '.[].ref | sub("^refs/tags/"; "")' \
+            latest=$( { gh api "repos/$GH_REPO/git/matching-refs/tags" --paginate --jq '.[].ref | sub("^refs/tags/"; "")'; cat; } \
               | { grep -E '^v?[0-9]+(\.[0-9]+)*$' || true; } | sort -V | tail -n1)
             if [ -z "$latest" ]; then echo 0.1; return; fi
             prefix=${latest%%[0-9]*}
@@ -55,30 +59,46 @@ jobs:
 
           # ¿Este PR ya tiene release (publicado o borrador)? Se conserva su número.
           tag=$(gh api "repos/$GH_REPO/releases?per_page=100" --paginate \
-            --jq ".[] | select((.body // \"\") | contains(\"$marker\")) | .tag_name" | head -n1)
+            --jq ".[] | select((.body // \"\") | contains(\"$marker\")) | .tag_name" | sed -n 1p)
 
           if [ -z "$tag" ] && [ "$SAME_REPO" != true ]; then
-            tag=$(next_tag)
+            tag=$(next_tag < /dev/null)
           elif [ -z "$tag" ]; then
-            # Crear la ref es atómico: si otro PR tomó ese número un instante antes, la API responde 422 y se
-            # prueba con el siguiente.
+            # Que la cancelación por un push nuevo no corte entre crear el tag y crear el borrador.
+            trap '' INT TERM
+            taken=''
             for attempt in 1 2 3 4 5; do
-              tag=$(next_tag)
-              if gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" > /dev/null; then break; fi
+              tag=$(printf '%s' "$taken" | next_tag)
+              # Crear la ref es atómico: si otro PR tomó ese número, la API responde 422 "Reference already exists".
+              if err=$(gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" 2>&1 > /dev/null); then
+                break
+              fi
+              if ! grep -q 'Reference already exists' <<< "$err"; then
+                echo "::error::No se pudo crear el tag $tag: $err"
+                echo "::error::Si GitHub lo rechaza por cambios en .github/workflows, agrega el secret RELEASE_TOKEN y vuelve a ejecutar."
+                exit 1
+              fi
+              echo "::warning::El tag $tag ya existe (intento $attempt); se prueba con el siguiente."
+              taken+="$tag"$'\n'
               tag=''
-              sleep $((attempt * 2))
             done
             if [ -z "$tag" ]; then echo "::error::No se pudo reservar un tag nuevo"; exit 1; fi
             # Borrador con el marcador: si el build falla o llega otro push, el PR conserva este número.
-            gh release create "$tag" --draft --verify-tag --title "$tag" --notes "$marker"
+            if ! gh release create "$tag" --draft --verify-tag --title "$tag" --notes "$marker"; then
+              gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$tag" || true
+              exit 1
+            fi
           fi
 
           # Versión semver para package.json: 0.2 → 0.2.0, v3 → 3.0.0.
           IFS=. read -r major minor patch _ <<< "${tag#v}"
           version="${major}.${minor:-0}.${patch:-0}"
           echo "PR #$PR → tag $tag, versión $version"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "publish=$SAME_REPO"
+          } >> "$GITHUB_OUTPUT"
 
   mac:
     name: macOS
@@ -107,33 +127,67 @@ jobs:
   release:
     name: Release
     needs: [version, mac, win, linux]
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: needs.version.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: read
     env:
       TAG: ${{ needs.version.outputs.tag }}
+      VERSION: ${{ needs.version.outputs.version }}
       TITLE: ${{ github.event.pull_request.title }}
     steps:
       # Todos los artefactos en una sola carpeta, ya descomprimidos: se suben los instaladores tal cual.
       - uses: actions/download-artifact@v4
         with:
-          pattern: Descargador-*
+          pattern: Kapta-Descargador-*
           path: installers
           merge-multiple: true
 
-      - name: Publicar el release ${{ needs.version.outputs.tag }}
+      - name: Comprobar instaladores y commit
+        id: check
         shell: bash
+        env:
+          # Leer el PR usa el token del workflow (RELEASE_TOKEN puede no tener permiso sobre PRs).
+          GH_TOKEN: ${{ github.token }}
         run: |
           ls -l installers
+          shopt -s nullglob
+          files=(installers/*)
+          bad=0
+          [ "${#files[@]}" -eq 10 ] || { echo "::error::Se esperaban 10 instaladores y hay ${#files[@]}"; bad=1; }
+          for f in "${files[@]}"; do
+            [[ $f == *"-$VERSION-"* ]] || { echo "::error::$f no lleva la versión $VERSION"; bad=1; }
+          done
+          [ "$bad" = 0 ] || exit 1
+          # Re-ejecutar una corrida vieja no debe regresar el release a un commit anterior del PR.
+          head=$(gh api "repos/$GH_REPO/pulls/$PR" --jq .head.sha)
+          if [ "$head" = "$SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::El PR ya va en ${head:0:7}; esta corrida (${SHA:0:7}) no actualiza el release."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
 
-          # El tag apunta al commit que se compiló.
-          gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" -f sha="$SHA" -F force=true > /dev/null
+      - name: Publicar el release ${{ needs.version.outputs.tag }}
+        if: steps.check.outputs.current == 'true'
+        shell: bash
+        run: |
+          # El tag apunta al commit que se compiló (si alguien lo borró, se vuelve a crear).
+          if ! err=$(gh api -X PATCH "repos/$GH_REPO/git/refs/tags/$TAG" -f sha="$SHA" -F force=true 2>&1 > /dev/null); then
+            if grep -q 'Reference does not exist' <<< "$err"; then
+              gh api "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" > /dev/null
+            else
+              echo "::error::No se pudo mover el tag $TAG: $err"
+              echo "::error::Si GitHub lo rechaza por cambios en .github/workflows, agrega el secret RELEASE_TOKEN y vuelve a ejecutar."
+              exit 1
+            fi
+          fi
 
           gh release upload "$TAG" installers/* --clobber
-          # Quita los instaladores de una versión anterior del PR que ya no corresponden.
+          # Quita los instaladores que ya no corresponden (p. ej. si cambió el nombre de alguno).
           gh release view "$TAG" --json assets --jq '.assets[].name' | while read -r name; do
-            if [ ! -e "installers/$name" ]; then gh release delete-asset "$TAG" "$name" --yes; fi
+            if [ ! -e "installers/$name" ]; then gh release delete-asset "$TAG" "$name" --yes < /dev/null; fi
           done
 
           # Orden y descripción de cada instalador en la tabla de las notas.
@@ -153,7 +207,7 @@ jobs:
             esac
           }
           {
-            echo "<!-- descargador-pr: $PR -->"
+            echo "<!-- kapta-descargador-pr: $PR -->"
             echo "Instaladores del PR #$PR ($TITLE), commit ${SHA:0:7}. Se reemplazan con cada push al PR."
             echo
             echo "| Equipo | Instalador |"
@@ -168,4 +222,8 @@ jobs:
             gh api "repos/$GH_REPO/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$SHA" --jq .body || true
           } > notes.md
 
-          gh release edit "$TAG" --title "$TAG" --notes-file notes.md --draft=false
+          # "Latest" solo para el número más alto: actualizar un PR viejo no se lo quita a uno más nuevo.
+          highest=$(gh api "repos/$GH_REPO/git/matching-refs/tags" --paginate --jq '.[].ref | sub("^refs/tags/"; "")' \
+            | { grep -E '^v?[0-9]+(\.[0-9]+)*$' || true; } | sort -V | tail -n1)
+          if [ "$highest" = "$TAG" ]; then latest=true; else latest=false; fi
+          gh release edit "$TAG" --title "$TAG" --notes-file notes.md --draft=false --latest="$latest"

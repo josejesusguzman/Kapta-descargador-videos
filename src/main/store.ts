@@ -1,6 +1,6 @@
 // Ajustes e historial, guardados como JSON en la carpeta de datos de la app.
 import { app, nativeImage } from 'electron'
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
 import type { AudioFormat, CookieBrowser, HistoryItem, Mode, Settings } from '@shared/types'
 import { QUALITY_STEPS } from '@shared/types'
@@ -26,7 +26,7 @@ const settingsFile = (): string => join(app.getPath('userData'), 'settings.json'
 
 function defaults(): Settings {
   return {
-    outputDir: join(app.getPath('videos'), 'Descargador'),
+    outputDir: join(app.getPath('videos'), 'Kapta Descargador'),
     defaultMode: 'video',
     defaultQuality: 1080,
     audioFormat: 'mp3',
@@ -69,6 +69,28 @@ export function updateSettings(patch: Partial<Settings>): Settings {
   settings = s
   writeJson(settingsFile(), s)
   return s
+}
+
+// ---------- Cambio de nombre ----------
+
+/**
+ * La app se llamaba "Descargador" y su carpeta de datos cambió con el nombre. La primera vez con el nombre nuevo se
+ * copian ajustes, historial y miniaturas de la carpeta anterior, que queda intacta. El motor no hace falta: se
+ * vuelve a copiar solo.
+ */
+export function migrateFromOldName(): void {
+  try {
+    const dir = app.getPath('userData')
+    const old = join(app.getPath('appData'), 'Descargador')
+    const files = ['settings.json', 'history.json']
+    if (old === dir || files.some((f) => existsSync(join(dir, f))) || !files.some((f) => existsSync(join(old, f)))) return
+    mkdirSync(dir, { recursive: true })
+    for (const name of [...files, 'thumbs']) {
+      if (existsSync(join(old, name))) cpSync(join(old, name), join(dir, name), { recursive: true })
+    }
+  } catch {
+    // Sin migración la app arranca igual, con ajustes nuevos.
+  }
 }
 
 // ---------- Historial ----------

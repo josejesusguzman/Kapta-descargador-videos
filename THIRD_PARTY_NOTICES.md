@@ -1,6 +1,6 @@
 # Avisos de terceros
 
-Descargador incluye los siguientes componentes de terceros:
+Kapta Descargador incluye los siguientes componentes de terceros:
 
 ## yt-dlp
 - Licencia: The Unlicense (dominio público)

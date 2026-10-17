@@ -1,11 +1,11 @@
 {
-  "name": "descargador",
-  "productName": "Descargador",
+  "name": "kapta-descargador",
+  "productName": "Kapta Descargador",
   "version": "0.1.0",
   "description": "Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.",
   "main": "./out/main/index.js",
-  "desktopName": "descargador.desktop",
-  "author": "Descargador",
+  "desktopName": "kapta-descargador.desktop",
+  "author": "Kapta Descargador",
   "license": "MIT",
   "private": true,
   "scripts": {
