@@ -36,12 +36,12 @@ Los binarios quedan en `resources/bin/<win|mac>-<arch>/` (antes `resources/bin/<
 
 ### Windows
 
-El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*, o al publicar un tag `v*`): genera los instaladores x64 y ARM64 en `windows-latest` y los deja como artefacto. **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
+El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*, o al publicar un tag `v*`): genera en `windows-latest` un artefacto por arquitectura (`Descargador-Windows-x64` y `Descargador-Windows-arm64`). **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
 
 ### macOS
 
 - Un DMG por arquitectura (Apple Silicon e Intel), compatible desde **macOS 12**; se arrastra la app a Aplicaciones.
-- El DMG solo se puede generar en una Mac. Sin una, usa el workflow **Build macOS** de GitHub Actions (pestaña *Actions* → *Build macOS* → *Run workflow*, o al publicar un tag `v*`): compila en `macos-latest` y deja los DMG como artefacto.
+- El DMG solo se puede generar en una Mac. Sin una, usa el workflow **Build macOS** de GitHub Actions (pestaña *Actions* → *Build macOS* → *Run workflow*, o al publicar un tag `v*`): compila en `macos-latest` y deja cada DMG como un artefacto propio (`Descargador-macOS-arm64` para Apple Silicon, `Descargador-macOS-x64` para Intel).
 - **No está notarizado** (firma ad-hoc). La primera vez macOS bloqueará la app: ábrela, luego ve a *Ajustes del Sistema → Privacidad y seguridad* y pulsa **Abrir de todos modos**. Para distribuirla sin ese aviso hace falta una cuenta de Apple Developer: quita `mac.identity` y pon `mac.notarize: true` en `electron-builder.yml`, y define `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` y `APPLE_TEAM_ID` (como secrets en el workflow).
 - Las cookies de Chrome/Edge se leen del Llavero: macOS pedirá permiso la primera vez.
 
