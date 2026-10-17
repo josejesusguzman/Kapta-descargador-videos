@@ -30,7 +30,7 @@ function createWindow(): void {
     backgroundColor: '#0d0e12',
     title: 'Descargador',
     icon: iconPath('icon.png'),
-    // Windows dibuja sus botones sobre la barra propia (titleBarOverlay); macOS, los semáforos.
+    // Windows y Linux dibujan sus botones sobre la barra propia (titleBarOverlay); macOS, los semáforos.
     ...(isMac
       ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 14 } }
       : { titleBarStyle: 'hidden' as const, titleBarOverlay: { color: '#0d0e12', symbolColor: '#c9cbd1', height: 44 } }),
@@ -240,7 +240,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     if (process.platform === 'win32') app.setAppUserModelId(APP_ID)
-    // Windows: sin menú, la ventana usa su propia barra de título. macOS: menú mínimo, sin él no
+    // Windows y Linux: sin menú, la ventana usa su propia barra de título. macOS: menú mínimo, sin él no
     // funcionan ⌘C, ⌘V, ⌘Q ni pegar un link en la ventana.
     Menu.setApplicationMenu(
       isMac ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]) : null

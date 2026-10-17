@@ -8,7 +8,7 @@ const exe = (name: string): string => (process.platform === 'win32' ? `${name}.e
 
 /** Carpeta con yt-dlp, ffmpeg, ffprobe (y DLLs en Windows) incluidos en la app. */
 export function bundledBinDir(): string {
-  const os = process.platform === 'darwin' ? 'mac' : 'win'
+  const os = process.platform === 'darwin' ? 'mac' : process.platform === 'linux' ? 'linux' : 'win'
   return app.isPackaged
     ? join(process.resourcesPath, 'bin')
     : join(app.getAppPath(), 'resources', 'bin', `${os}-${process.arch}`)

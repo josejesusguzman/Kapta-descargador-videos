@@ -11,7 +11,7 @@ files:
   - package.json
   - '!**/*.map'
 
-# Binarios por sistema y arquitectura (npm run fetch-binaries -- --platform=win|mac --arch=x64|arm64)
+# Binarios por sistema y arquitectura (npm run fetch-binaries -- --platform=win|mac|linux --arch=x64|arm64)
 # y recursos sueltos.
 # Nota: yt-dlp usa el propio ejecutable como runtime JS (ELECTRON_RUN_AS_NODE), así que
 # el fuse "RunAsNode" de Electron debe seguir activado (es el valor por defecto).
@@ -78,3 +78,20 @@ dmg:
       y: 190
       type: link
       path: /Applications
+
+# Linux: AppImage (cualquier distro), .deb (Debian/Ubuntu/Mint) y .rpm (Fedora/openSUSE), x64 y arm64.
+linux:
+  target:
+    - target: AppImage
+    - target: deb
+    - target: rpm
+  icon: build/icon.png
+  category: AudioVideo
+  executableName: descargador
+  # Usa desktopName de package.json para el .desktop y el WM_CLASS: así el dock asocia la ventana al lanzador.
+  syncDesktopName: true
+  synopsis: Descarga video y audio para edición
+  description: Descarga video y audio para edición, 100% local, sin anuncios ni cuentas.
+  # .deb y .rpm exigen un responsable con email.
+  maintainer: josejesusguzman <8755301+josejesusguzman@users.noreply.github.com>
+  artifactName: ${productName}-${version}-${arch}.${ext}
