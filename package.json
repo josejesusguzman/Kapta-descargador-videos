@@ -6,6 +6,7 @@
   "main": "./out/main/index.js",
   "desktopName": "descargador.desktop",
   "author": "Descargador",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "fetch-binaries": "node scripts/fetch-binaries.mjs",

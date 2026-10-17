@@ -77,6 +77,10 @@ El instalador es NSIS por usuario: no pide permisos de administrador y crea acce
 
 FFmpeg se incluye en su compilación GPL; ver `THIRD_PARTY_NOTICES.md`.
 
+## Licencia
+
+El código de Descargador se distribuye bajo la licencia MIT (ver `LICENSE`). Los componentes de terceros que incluyen los instaladores (yt-dlp, FFmpeg, Electron, React) conservan sus propias licencias; ver `THIRD_PARTY_NOTICES.md`.
+
 ## Estructura
 
 ```
