@@ -1,22 +1,39 @@
-# Instaladores de macOS (DMG para Apple Silicon e Intel). Se ejecuta a mano desde la pestaña
-# Actions o al publicar un tag v*. Cada DMG queda como un artefacto propio de la ejecución.
+# Instaladores de macOS (DMG para Apple Silicon e Intel). Se ejecuta a mano desde la pestaña Actions o
+# desde pr-release.yml en cada PR a main. Cada DMG queda como un artefacto propio de la ejecución.
 name: Build macOS
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      version:
+        description: Versión de la app para los instaladores (p. ej. 0.2.0). Vacío = la de package.json.
+        type: string
+        default: ''
+      ref:
+        description: Commit a compilar. Vacío = el del evento.
+        type: string
+        default: ''
 
 jobs:
   mac:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Los instaladores llevan la versión del release (p. ej. Descargador-0.2.0-arm64.dmg).
+      - name: Versión ${{ inputs.version }}
+        if: inputs.version != ''
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version --allow-same-version
       - run: npm test
       - name: Build DMG (arm64 + x64)
         run: npm run build:mac

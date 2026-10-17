@@ -36,9 +36,21 @@ Los binarios quedan en `resources/bin/<win|mac|linux>-<arch>/` (antes `resources
 
 ## Distribución
 
+### Releases automáticos en cada PR a `main`
+
+El workflow **PR a main** (`.github/workflows/pr-release.yml`) corre al abrir un pull request hacia `main` y en cada push posterior a ese PR:
+
+1. Toma el siguiente número de tag respecto al más alto que exista (`0.1` → `0.2` → … → `0.9` → `0.10`) y lo reserva para el PR. Cada PR tiene un solo número.
+2. Ejecuta los tres builds (**Build macOS**, **Build Windows** y **Build Linux**) sobre el último commit del PR, con ese número como versión de la app (`0.2` → `0.2.0`).
+3. Publica el release con ese tag y le adjunta los 10 instaladores sueltos, sin zip: DMG de macOS (Apple Silicon e Intel), instaladores de Windows (x64 y ARM64) y AppImage, .deb y .rpm de Linux (x64 y ARM64).
+
+Un push nuevo al mismo PR vuelve a compilar, reemplaza los instaladores de ese release y mueve el tag al último commit. Si algún build falla, el número queda reservado (como borrador) y se publica cuando el PR vuelva a compilar bien. Los PR desde forks solo compilan: no reciben tag ni release.
+
+Los tres workflows de build también se pueden lanzar a mano (pestaña *Actions* → *Run workflow*); así dejan los instaladores como artefactos de la ejecución, sin release.
+
 ### Windows
 
-El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*, o al publicar un tag `v*`): genera en `windows-latest` un artefacto por arquitectura (`Descargador-Windows-x64` y `Descargador-Windows-arm64`). **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
+El instalador es NSIS por usuario: no pide permisos de administrador y crea accesos en el Menú Inicio y en el escritorio. Sin una PC con Windows, usa el workflow **Build Windows** de GitHub Actions (pestaña *Actions* → *Build Windows* → *Run workflow*): genera en `windows-latest` un artefacto por arquitectura (`Descargador-Windows-x64` y `Descargador-Windows-arm64`). **No está firmado**, así que Windows SmartScreen mostrará un aviso. Para distribuirlo públicamente conviene firmarlo (Azure Trusted Signing o un certificado OV) configurando `win.signtoolOptions` / `azureSignOptions` en `electron-builder.yml`.
 
 ### macOS
 
@@ -50,7 +62,7 @@ El instalador es NSIS por usuario: no pide permisos de administrador y crea acce
   - Abrir la carpeta de descargas, los ajustes y activar *Abrir al iniciar sesión* (arranca solo en la barra de menú; la app tiene que estar en Aplicaciones).
 
   Al cerrar la ventana, la app sigue en la barra de menú (sin ícono en el Dock) y las descargas continúan; ⌘Q o *Salir de Descargador* la cierran. Se desactiva en *Ajustes → Barra de menú*, y entonces cerrar la ventana vuelve a cerrar la app.
-- El DMG solo se puede generar en una Mac. Sin una, usa el workflow **Build macOS** de GitHub Actions (pestaña *Actions* → *Build macOS* → *Run workflow*, o al publicar un tag `v*`): compila en `macos-latest` y deja cada DMG como un artefacto propio (`Descargador-macOS-arm64` para Apple Silicon, `Descargador-macOS-x64` para Intel).
+- El DMG solo se puede generar en una Mac. Sin una, usa el workflow **Build macOS** de GitHub Actions (pestaña *Actions* → *Build macOS* → *Run workflow*): compila en `macos-latest` y deja cada DMG como un artefacto propio (`Descargador-macOS-arm64` para Apple Silicon, `Descargador-macOS-x64` para Intel).
 - **No está notarizado** (firma ad-hoc). La primera vez macOS bloqueará la app: ábrela, luego ve a *Ajustes del Sistema → Privacidad y seguridad* y pulsa **Abrir de todos modos**. Para distribuirla sin ese aviso hace falta una cuenta de Apple Developer: quita `mac.identity` y pon `mac.notarize: true` en `electron-builder.yml`, y define `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` y `APPLE_TEAM_ID` (como secrets en el workflow).
 - Las cookies de Chrome/Edge se leen del Llavero: macOS pedirá permiso la primera vez.
 
@@ -61,7 +73,7 @@ El instalador es NSIS por usuario: no pide permisos de administrador y crea acce
   - **.deb** (Debian, Ubuntu, Mint…): `sudo apt install ./Descargador-*.deb`.
   - **.rpm** (Fedora, openSUSE…): `sudo dnf install ./Descargador-*.rpm`.
 - El .deb y el .rpm instalan la app en `/opt/Descargador` con su acceso en el menú; el .deb incluye el perfil de AppArmor que Ubuntu 24.04+ pide para el sandbox de Chromium. El AppImage arranca con `--no-sandbox` solo si el sistema no permite user namespaces.
-- Sin un equipo con Linux, usa el workflow **Build Linux** de GitHub Actions (pestaña *Actions* → *Build Linux* → *Run workflow*, o al publicar un tag `v*`): compila de forma nativa en `ubuntu-latest` (x64) y `ubuntu-24.04-arm` (ARM64) y deja cada paquete como un artefacto propio (`Descargador-Linux-<arch>-AppImage`, `-deb` y `-rpm`).
+- Sin un equipo con Linux, usa el workflow **Build Linux** de GitHub Actions (pestaña *Actions* → *Build Linux* → *Run workflow*): compila de forma nativa en `ubuntu-latest` (x64) y `ubuntu-24.04-arm` (ARM64) y deja cada paquete como un artefacto propio (`Descargador-Linux-<arch>-AppImage`, `-deb` y `-rpm`).
 
 FFmpeg se incluye en su compilación GPL; ver `THIRD_PARTY_NOTICES.md`.
 
