@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AudioFormat, CookieBrowser, EngineInfo, Mode, Settings } from '@shared/types'
 import { QUALITY_STEPS } from '@shared/types'
-import { qualityLabel } from '../lib/format'
+import { platformLabel, qualityLabel } from '../lib/format'
+import { isAndroid } from '../lib/platform'
 import { FolderIcon, RetryIcon, ShieldIcon, Spinner, XIcon } from './Icons'
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
 
 function Row({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-6 py-3">
+    <div className="flex items-center justify-between gap-4 py-3 sm:gap-6">
       <div className="min-w-0">
         <p className="font-semibold">{label}</p>
         {hint && <p className="mt-0.5 text-[12.5px] text-faint">{hint}</p>}
@@ -34,11 +35,13 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
   const [engineMsg, setEngineMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [version, setVersion] = useState('')
   const [openAtLogin, setOpenAtLogin] = useState(false)
+  const [logins, setLogins] = useState<string[]>([])
 
   useEffect(() => {
     void window.api.engineInfo().then(setEngine)
     void window.api.appVersion().then(setVersion)
     if (isMac) void window.api.getOpenAtLogin().then(setOpenAtLogin)
+    void window.api.listLogins?.().then(setLogins)
     dialogRef.current?.focus()
   }, [])
 
@@ -49,8 +52,13 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
   }, [onClose])
 
   const chooseFolder = async () => {
-    const dir = await window.api.chooseFolder()
+    const dir = await window.api.chooseFolder?.()
     if (dir) onChange({ outputDir: dir })
+  }
+
+  const logout = async (site: string) => {
+    await window.api.logout?.(site)
+    setLogins((l) => l.filter((s) => s !== site))
   }
 
   const updateEngine = async () => {
@@ -68,7 +76,7 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-6 backdrop-blur-[2px]" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={onClose}>
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -90,11 +98,17 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
         <div className="overflow-y-auto px-5 pb-5">
           <h3 className="mt-4 text-[12px] font-semibold uppercase tracking-wider text-faint">Descargas</h3>
           <div className="divide-y divide-line">
-            <Row label="Carpeta de descargas" hint={<span className="break-all">{settings.outputDir}</span>}>
-              <button onClick={chooseFolder} className="flex h-9 items-center gap-2 rounded-lg bg-raised px-3 font-semibold hover:bg-line">
-                <FolderIcon size={16} /> Cambiar
-              </button>
-            </Row>
+            {window.api.chooseFolder ? (
+              <Row label="Carpeta de descargas" hint={<span className="break-all">{settings.outputDir}</span>}>
+                <button onClick={chooseFolder} className="flex h-9 items-center gap-2 rounded-lg bg-raised px-3 font-semibold hover:bg-line">
+                  <FolderIcon size={16} /> Cambiar
+                </button>
+              </Row>
+            ) : (
+              <Row label="Dónde se guardan" hint="En tu galería y en Archivos: Películas → Kapta Descargador (video) y Música → Kapta Descargador (audio).">
+                <FolderIcon size={18} className="text-faint" />
+              </Row>
+            )}
             <Row label="Tipo predeterminado">
               <select className={selectCls} value={settings.defaultMode} onChange={(e) => onChange({ defaultMode: e.target.value as Mode })}>
                 <option value="video">Video</option>
@@ -137,24 +151,44 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
             </Row>
           </div>
 
-          <h3 className="mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">Acceso a contenido</h3>
-          <div className="divide-y divide-line">
-            <Row
-              label="Usar cookies de mi navegador"
-              hint="Solo si Instagram o YouTube piden iniciar sesión o verificar tu edad. Las cookies se leen en tu equipo y no salen de él. En Windows, Firefox es el más confiable; Chrome y Edge pueden fallar por su cifrado."
-            >
-              <select
-                className={selectCls}
-                value={settings.cookiesBrowser}
-                onChange={(e) => onChange({ cookiesBrowser: e.target.value as CookieBrowser })}
-              >
-                <option value="none">No usar</option>
-                <option value="firefox">Firefox</option>
-                <option value="edge">Edge</option>
-                <option value="chrome">Chrome</option>
-              </select>
-            </Row>
-          </div>
+          {!isAndroid && (
+            <>
+              <h3 className="mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">Acceso a contenido</h3>
+              <div className="divide-y divide-line">
+                <Row
+                  label="Usar cookies de mi navegador"
+                  hint="Solo si Instagram o YouTube piden iniciar sesión o verificar tu edad. Las cookies se leen en tu equipo y no salen de él. En Windows, Firefox es el más confiable; Chrome y Edge pueden fallar por su cifrado."
+                >
+                  <select
+                    className={selectCls}
+                    value={settings.cookiesBrowser}
+                    onChange={(e) => onChange({ cookiesBrowser: e.target.value as CookieBrowser })}
+                  >
+                    <option value="none">No usar</option>
+                    <option value="firefox">Firefox</option>
+                    <option value="edge">Edge</option>
+                    <option value="chrome">Chrome</option>
+                  </select>
+                </Row>
+              </div>
+            </>
+          )}
+
+          {/* Android: las sesiones solo se crean cuando un sitio la pide al descargar; aquí se pueden cerrar. */}
+          {logins.length > 0 && (
+            <>
+              <h3 className="mt-6 text-[12px] font-semibold uppercase tracking-wider text-faint">Sesiones guardadas</h3>
+              <div className="divide-y divide-line">
+                {logins.map((site) => (
+                  <Row key={site} label={platformLabel(site)} hint="Solo se usa para los videos de este sitio que piden iniciar sesión. Queda en tu teléfono.">
+                    <button onClick={() => void logout(site)} className="flex h-9 items-center rounded-lg bg-raised px-3 font-semibold hover:bg-line">
+                      Cerrar sesión
+                    </button>
+                  </Row>
+                ))}
+              </div>
+            </>
+          )}
 
           {isMac && (
             <>
@@ -222,7 +256,7 @@ export function SettingsDialog({ settings, onChange, onClose }: Props) {
           <div className="mt-6 flex gap-3 rounded-xl border border-line bg-bg p-4 text-[13px] text-muted">
             <ShieldIcon size={20} className="mt-0.5 shrink-0 text-ok" />
             <p>
-              <span className="font-semibold text-ink">Todo pasa en tu computadora.</span> Sin cuentas, sin anuncios y sin
+              <span className="font-semibold text-ink">Todo pasa en tu {isAndroid ? 'teléfono' : 'computadora'}.</span> Sin cuentas, sin anuncios y sin
               telemetría: la app solo se conecta a la plataforma del link que pegas. Descarga únicamente contenido propio o
               que tengas permiso de usar, y respeta los derechos de autor y los términos de cada plataforma.
               <span className="mt-2 block text-faint">

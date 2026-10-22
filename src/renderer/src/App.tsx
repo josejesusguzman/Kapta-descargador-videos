@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AudioFormat, HistoryItem, Job, MediaInfo, Mode, Settings } from '@shared/types'
+import type { AudioFormat, HistoryItem, Job, LoginRequiredError, MediaInfo, Mode, Settings } from '@shared/types'
 import { pickQuality } from '@shared/types'
 import { AlertIcon, FolderIcon, Logo, SlidersIcon, XIcon } from './components/Icons'
 import { Library } from './components/Library'
@@ -8,6 +8,8 @@ import { Onboarding, STEPS } from './components/Onboarding'
 import { QueueList } from './components/QueueList'
 import { SettingsDialog } from './components/SettingsDialog'
 import { UrlBar } from './components/UrlBar'
+import { platformLabel } from './lib/format'
+import { isAndroid } from './lib/platform'
 
 const api = window.api
 const isUrl = (t: string): boolean => /^https?:\/\/\S+$/i.test(t.trim())
@@ -18,6 +20,8 @@ export default function App() {
   const [analyzing, setAnalyzing] = useState(false)
   const [media, setMedia] = useState<MediaInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Sitio que pidió iniciar sesión al analizar (solo Android): el aviso ofrece hacerlo. */
+  const [loginSite, setLoginSite] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('video')
   const [quality, setQuality] = useState(1080)
   const [audioFormat, setAudioFormat] = useState<AudioFormat>('mp3')
@@ -28,6 +32,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const seq = useRef(0)
+  const lastTarget = useRef('')
   const seenClipboard = useRef(new Set<string>())
 
   const refreshHistory = useCallback(() => void api.listHistory().then(setHistory), [])
@@ -64,8 +69,10 @@ export default function App() {
     async (target: string) => {
       const id = ++seq.current
       seenClipboard.current.add(target)
+      lastTarget.current = target
       setSuggestion(null)
       setError(null)
+      setLoginSite(null)
       setMedia(null)
       setAnalyzing(true)
       try {
@@ -76,7 +83,10 @@ export default function App() {
         setMode(info.qualities.length ? (s?.defaultMode ?? 'video') : 'audio')
         setQuality(pickQuality(info.qualities, s?.defaultQuality ?? 1080))
       } catch (err) {
-        if (id === seq.current) setError((err as Error).message)
+        if (id === seq.current) {
+          setError((err as Error).message)
+          setLoginSite((err as LoginRequiredError).loginSite ?? null)
+        }
       } finally {
         if (id === seq.current) setAnalyzing(false)
       }
@@ -156,8 +166,17 @@ export default function App() {
 
   /** La carpeta elegida queda como predeterminada para las siguientes descargas. */
   const chooseFolder = async () => {
-    const dir = await api.chooseFolder()
+    const dir = await api.chooseFolder?.()
     if (dir) await updateSettings({ outputDir: dir })
+  }
+
+  /** Inicio de sesión que pidió el sitio (solo Android); si quedó guardada, se reintenta solo. */
+  const loginAndRetry = async (site: string, retry: () => void) => {
+    try {
+      if (await api.login?.(site)) retry()
+    } catch (err) {
+      setError((err as Error).message)
+    }
   }
 
   const updateSettings = async (patch: Partial<Settings>) => {
@@ -167,10 +186,11 @@ export default function App() {
     if (patch.editorCompatible !== undefined) setCompat(patch.editorCompatible)
   }
 
+  // En Android no hay carpetas que mostrar ni arrastre: los archivos se abren en otra app.
   const fileActions = {
-    onShow: (p: string) => void api.showInFolder(p),
+    onShow: api.showInFolder ? (p: string) => void api.showInFolder?.(p) : undefined,
     onOpen: (p: string) => void api.openFile(p),
-    onDrag: (p: string) => api.startDrag(p)
+    onDrag: api.startDrag ? (p: string) => api.startDrag?.(p) : undefined
   }
 
   const activeCount = jobs.filter((j) => j.status === 'downloading' || j.status === 'processing' || j.status === 'queued').length
@@ -180,17 +200,21 @@ export default function App() {
       {/* Barra de título propia; los botones de ventana los dibuja el sistema (titleBarOverlay en Windows,
           semáforos a la izquierda en macOS). */}
       <header
-        className={`drag-region flex h-11 shrink-0 items-center gap-2.5 ${api.platform === 'darwin' ? 'pl-[84px] pr-4' : 'pl-4 pr-[150px]'}`}
+        className={`drag-region flex h-11 shrink-0 items-center gap-2.5 ${
+          isAndroid ? 'px-4' : api.platform === 'darwin' ? 'pl-[84px] pr-4' : 'pl-4 pr-[150px]'
+        }`}
       >
         <Logo size={20} />
         <span className="font-display text-[14px] font-semibold tracking-tight">Kapta Descargador</span>
         <div className="flex-1" />
-        <button
-          onClick={() => void api.openOutputDir()}
-          className="no-drag flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface hover:text-ink"
-        >
-          <FolderIcon size={16} /> Carpeta
-        </button>
+        {api.openOutputDir && (
+          <button
+            onClick={() => void api.openOutputDir?.()}
+            className="no-drag flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface hover:text-ink"
+          >
+            <FolderIcon size={16} /> Carpeta
+          </button>
+        )}
         <button
           onClick={() => setShowSettings(true)}
           className="no-drag flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] text-muted hover:bg-surface hover:text-ink"
@@ -199,15 +223,19 @@ export default function App() {
         </button>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col">
-        <div className="mx-auto w-full max-w-[920px] shrink-0 px-6 pt-4">
+      {/* En pantallas angostas (teléfono) se desplaza toda la página; en escritorio, solo la lista. */}
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-visible">
+        <div className="mx-auto w-full max-w-[920px] shrink-0 px-4 pt-4 sm:px-6">
           <UrlBar
             value={url}
             analyzing={analyzing}
             suggestion={suggestion}
             onChange={(v) => {
               setUrl(v)
-              if (!v) setError(null)
+              if (!v) {
+                setError(null)
+                setLoginSite(null)
+              }
             }}
             onSubmit={(u) => void analyze(u)}
             onPasteClick={() => void pasteFromClipboard()}
@@ -216,6 +244,7 @@ export default function App() {
               setUrl('')
               setMedia(null)
               setError(null)
+              setLoginSite(null)
               setAnalyzing(false)
             }}
             onUseSuggestion={() => {
@@ -233,7 +262,17 @@ export default function App() {
             {error && (
               <div role="alert" className="mb-4 flex items-start gap-3 rounded-xl border border-bad/40 bg-bad/10 px-4 py-3 text-[13.5px]">
                 <AlertIcon size={18} className="mt-0.5 shrink-0 text-bad" />
-                <p className="flex-1">{error}</p>
+                <div className="flex-1">
+                  <p>{error}</p>
+                  {loginSite && api.login && (
+                    <button
+                      onClick={() => void loginAndRetry(loginSite, () => void analyze(lastTarget.current))}
+                      className="mt-2 rounded-lg bg-raised px-3 py-1.5 font-semibold text-ink hover:bg-line"
+                    >
+                      Iniciar sesión en {platformLabel(loginSite)} y reintentar
+                    </button>
+                  )}
+                </div>
                 <button onClick={() => setError(null)} className="text-muted hover:text-ink" aria-label="Cerrar aviso">
                   <XIcon size={16} />
                 </button>
@@ -253,11 +292,11 @@ export default function App() {
                 onEditorCompatible={setCompat}
                 onDownload={() => void startDownload()}
                 outputDir={settings?.outputDir ?? ''}
-                onChooseFolder={() => void chooseFolder()}
+                onChooseFolder={api.chooseFolder ? () => void chooseFolder() : undefined}
               />
             )}
             {!analyzing && !media && !error && (
-              <ol className="grid grid-cols-3 gap-3">
+              <ol className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {STEPS.map(({ icon: Icon, title, text }, i) => (
                   <li key={title} className="flex gap-3 rounded-2xl border border-dashed border-line p-4">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[13px] font-bold text-accent">
@@ -276,7 +315,7 @@ export default function App() {
           </div>
         </div>
 
-        <section className="mx-auto mt-5 flex min-h-0 w-full max-w-[920px] flex-1 flex-col px-6">
+        <section className="mx-auto mt-5 flex w-full max-w-[920px] flex-col px-4 sm:min-h-0 sm:flex-1 sm:px-6">
           <div role="tablist" className="flex shrink-0 gap-1 border-b border-line">
             {(
               [
@@ -304,14 +343,15 @@ export default function App() {
                 )}
               </button>
             ))}
-            <p className="ml-auto self-center pb-2 text-[12px] text-faint">Arrastra los archivos listos directo a CapCut</p>
+            {api.startDrag && <p className="ml-auto self-center pb-2 text-[12px] text-faint">Arrastra los archivos listos directo a CapCut</p>}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto py-3 pr-1">
+          <div className="py-3 pr-1 sm:min-h-0 sm:flex-1 sm:overflow-y-auto">
             {tab === 'queue' ? (
               <QueueList
                 jobs={jobs}
                 onCancel={(id) => void api.cancelJob(id)}
                 onRetry={(id) => void api.retryJob(id)}
+                onLogin={api.login ? (job) => void loginAndRetry(job.loginSite!, () => void api.retryJob(job.id)) : undefined}
                 onDismiss={(id) => {
                   void api.dismissJob(id)
                   setJobs((l) => l.filter((j) => j.id !== id))
