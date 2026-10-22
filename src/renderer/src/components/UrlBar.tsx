@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { isAndroid } from '../lib/platform'
 import { ArrowRightIcon, ClipboardIcon, LinkIcon, Spinner, XIcon } from './Icons'
 
 interface Props {
@@ -18,8 +19,9 @@ const shortUrl = (u: string): string => u.replace(/^https?:\/\/(www\.)?/, '').sl
 export function UrlBar(p: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // En Android, enfocar al abrir sacaría el teclado sin que se pida.
   useEffect(() => {
-    inputRef.current?.focus()
+    if (!isAndroid) inputRef.current?.focus()
   }, [])
 
   return (

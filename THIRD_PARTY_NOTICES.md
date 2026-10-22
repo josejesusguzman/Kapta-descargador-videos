@@ -18,3 +18,14 @@ Kapta Descargador incluye los siguientes componentes de terceros:
 
 ## React
 - Licencia: MIT — https://github.com/facebook/react
+
+## Solo en la app de Android
+
+### youtubedl-android (incluye Python, yt-dlp, QuickJS y FFmpeg para Android)
+- Licencia: GNU General Public License v3 — https://github.com/yausername/youtubedl-android
+- Python: Python Software Foundation License — https://www.python.org
+- QuickJS (versión 2025-04-26): MIT — https://bellard.org/quickjs/
+- FFmpeg: compilación GPL a partir de los paquetes de Termux (https://github.com/termux/termux-packages); código fuente en https://ffmpeg.org/download.html
+
+### Capacitor
+- Licencia: MIT — https://github.com/ionic-team/capacitor

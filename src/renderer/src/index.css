@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Explícito porque el build de Android (vite.mobile.config.ts) tiene otra raíz y no vería estas clases. */
+@source './';
 
 @theme {
   --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;

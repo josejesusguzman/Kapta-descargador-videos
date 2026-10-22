@@ -1,10 +1,10 @@
 # Kapta Descargador
 
-App de escritorio para Windows, macOS y Linux que descarga video y audio de YouTube, TikTok, Instagram y más de 1,700 sitios, pensada para editores de contenido. Funciona 100 % en local, sin cuentas, sin anuncios y sin telemetría. Los archivos descargados se arrastran directo a CapCut (o a cualquier editor).
+App para Windows, macOS, Linux y Android que descarga video y audio de YouTube, TikTok, Instagram y más de 1,700 sitios, pensada para editores de contenido. Funciona 100 % en local, sin cuentas, sin anuncios y sin telemetría. En la computadora, los archivos descargados se arrastran directo a CapCut (o a cualquier editor); en Android quedan en la galería, listos para abrirlos en CapCut.
 
 ## Instalación
 
-Kapta Descargador funciona en **Windows 10/11**, **macOS 13 (Ventura) o más nuevo** y **Linux** (x64 y ARM64). No necesitas cuenta ni instalar nada más: yt-dlp y FFmpeg ya vienen dentro de la app.
+Kapta Descargador funciona en **Windows 10/11**, **macOS 13 (Ventura) o más nuevo**, **Linux** (x64 y ARM64) y **Android 10 o más nuevo**. No necesitas cuenta ni instalar nada más: yt-dlp y FFmpeg ya vienen dentro de la app.
 
 | Tu equipo | Opción | Archivo que descargas |
 |---|---|---|
@@ -16,6 +16,8 @@ Kapta Descargador funciona en **Windows 10/11**, **macOS 13 (Ventura) o más nue
 | Linux, cualquier distribución | [AppImage](#linux-appimage-cualquier-distribución) | `Linux-Kapta-Descargador-<versión>-x86_64.AppImage` (ARM: `-arm64.AppImage`) |
 | Ubuntu, Debian, Linux Mint, Pop!_OS… | [Paquete .deb](#linux-paquete-deb-ubuntu-debian-mint) | `Linux-Kapta-Descargador-<versión>-amd64.deb` (ARM: `-arm64.deb`) |
 | Fedora, openSUSE, RHEL… | [Paquete .rpm](#linux-paquete-rpm-fedora-opensuse) | `Linux-Kapta-Descargador-<versión>-x86_64.rpm` (ARM: `-aarch64.rpm`) |
+| Teléfono o tablet Android (casi todos) | [APK de Android](#android) | `Android-Kapta-Descargador-<versión>-arm64.apk` |
+| Android de 32 bits (teléfonos de antes de 2017 aprox.) | [APK de Android](#android) | `Android-Kapta-Descargador-<versión>-armv7.apk` |
 | Cualquier sistema, para desarrolladores | [Desde el código fuente](#desde-el-código-fuente) | — |
 
 > **Sobre las imágenes:** las capturas de la app (`app-*.png`) son reales, tomadas de la versión 0.3 en Linux; la app se ve igual en Windows y macOS. Las de las ventanas de Windows, macOS, GitHub y el gestor de archivos de Linux son **ilustraciones** que reproducen lo que vas a ver; los textos pueden variar un poco según la versión y el idioma de tu sistema.
@@ -172,6 +174,26 @@ Instala la app en `/opt/Kapta Descargador` y la agrega al menú de aplicaciones.
 - **Actualizar:** repite el paso 2 con el `.rpm` nuevo.
 - **Desinstalar:** `sudo dnf remove kapta-descargador` o `sudo zypper remove kapta-descargador`.
 
+### Android
+
+La app de Android no está en Google Play (Google no permite apps que descarguen de YouTube): se instala con el APK del release. Funciona en **Android 10 o más nuevo**. Si no sabes cuál bajar, usa el `-arm64.apk`; si al instalarlo dice que la app no es compatible, usa el `-armv7.apk`.
+
+1. Desde el teléfono, abre **[el último release](https://github.com/josejesusguzman/Kapta-descargador-videos/releases/latest)**, baja hasta **Assets** y toca `Android-Kapta-Descargador-<versión>-arm64.apk`. Pesa alrededor de 80 MB.
+2. Cuando termine, toca la notificación de la descarga (o abre el archivo desde **Archivos → Descargas**).
+3. La primera vez Android pide permiso para instalar apps de ese origen: toca **Configuración**, activa **Permitir de esta fuente** y vuelve atrás.
+4. Toca **Instalar**. Si aparece **Play Protect** diciendo que la app es de un desarrollador desconocido, toca **Más detalles → Instalar de todas formas**.
+5. Abre **Kapta Descargador** desde el cajón de apps. La primera vez tarda unos segundos más en preparar el motor de descarga.
+
+Cómo se usa en el teléfono:
+
+- **Compartir**: en YouTube, TikTok, Instagram o el navegador toca **Compartir → Kapta Descargador** y la app abre ese video. También puedes pegar el link (la app te sugiere el que copiaste).
+- Los archivos quedan en la **galería** y en **Archivos**: video en *Películas → Kapta Descargador* y audio en *Música → Kapta Descargador*. Desde la **Biblioteca** de la app, toca un archivo para abrirlo con CapCut u otra app. En Android no hay arrastrar a CapCut: desde CapCut, impórtalo de la galería.
+- Las descargas siguen aunque cierres la app o apagues la pantalla (verás una notificación con el progreso). Con la primera descarga, Android 13 o más nuevo pregunta si permites notificaciones para avisarte cuando terminen.
+- **Iniciar sesión**: la app nunca lo pide de entrada. Solo si un video falla porque el sitio exige sesión (restricción de edad, "confirma que no eres un bot", contenido de Instagram que pide cuenta…), aparece el botón **Iniciar sesión en <sitio> y reintentar**: inicias sesión en esa pantalla, tocas **Listo** y la descarga se reintenta. La sesión queda solo en tu teléfono y solo se usa para ese sitio; se cierra en *Ajustes → Sesiones guardadas*. Si el sitio no deja iniciar sesión ahí (Google a veces lo bloquea), esa misma pantalla permite cargar un `cookies.txt` exportado desde tu navegador.
+
+- **Actualizar:** descarga el APK de la versión nueva e instálalo encima; conserva tu historial y tus ajustes.
+- **Desinstalar:** mantén presionado el ícono → **Desinstalar**. Los archivos descargados se quedan en la galería.
+
 ### Primer uso
 
 Al abrir la app por primera vez verás la bienvenida; pulsa **Empezar**.
@@ -234,8 +256,22 @@ Otros comandos:
 | `npm run build:mac:arm64` / `build:mac:x64` | DMG de una sola arquitectura |
 | `npm run build:linux` | AppImage, .deb y .rpm x64 → `dist/` (solo en Linux; el .rpm necesita `rpmbuild`, paquete `rpm`) |
 | `npm run build:linux:arm64` | Los mismos paquetes para Linux ARM64 |
+| `npm run build:mobile` | Interfaz para Android → `out/mobile` |
+| `npm run android:sync` | `build:mobile` + copia la interfaz y los plugins al proyecto `android/` (`cap sync`) |
+| `npm run build:android` | APK arm64 y armv7 → `android/app/build/outputs/apk/release/Android-Kapta-Descargador-<versión>-{arm64,armv7}.apk` (con pruebas de la JVM) |
 
 Los binarios quedan en `resources/bin/<win|mac|linux>-<arch>/` (antes `resources/bin/<arch>/`: si ya tenías un entorno de desarrollo, vuelve a ejecutar `npm run fetch-binaries`).
+
+### Android
+
+La app de Android usa la misma interfaz React (`src/renderer`) dentro de [Capacitor](https://capacitorjs.com). `src/mobile/api.ts` implementa `window.api` sobre el plugin nativo `Kapta` (Kotlin, en `android/app/src/main/java/com/kapta/descargador/`), que reemplaza al proceso principal de Electron:
+
+- **Motor**: [youtubedl-android](https://github.com/yausername/youtubedl-android) trae Python, yt-dlp, QuickJS (para los retos de JavaScript de YouTube) y FFmpeg para Android. `core/Args.kt` y `core/Parse.kt` son el port de `src/main/ytdlpArgs.ts` y `src/main/parse.ts`, con las mismas pruebas (`android/app/src/test`).
+- **Cola**: `JobQueue.kt` (port de `src/main/queue.ts`) vive en el proceso de la app y `DownloadService.kt` (servicio en primer plano) la mantiene viva mientras haya descargas.
+- **Compatible con editores**: `Ffmpeg.kt` recodifica a H.264 con MediaCodec (hardware) o, si falla, con libx264.
+- Los archivos se copian a la galería con MediaStore (`Gallery.kt`), sin permisos de almacenamiento.
+
+Para compilar necesitas Node.js 22, JDK 21 y el Android SDK (Android Studio o las *command line tools*) con `ANDROID_HOME` definido. Sin llave de firma, el APK de release se firma con la llave de depuración. Para abrir el proyecto en Android Studio: `npm run android:sync` y luego `npx cap open android`.
 
 ## Distribución
 
@@ -244,16 +280,16 @@ Los binarios quedan en `resources/bin/<win|mac|linux>-<arch>/` (antes `resources
 El workflow **PR a main** (`.github/workflows/pr-release.yml`) corre al abrir un pull request hacia `main` y en cada push posterior a ese PR:
 
 1. Toma el siguiente número de tag respecto al más alto que exista (`0.1` → `0.2` → … → `0.9` → `0.10`) y lo reserva para el PR. Cada PR tiene un solo número.
-2. Ejecuta los tres builds (**Build macOS**, **Build Windows** y **Build Linux**) sobre el último commit del PR, con ese número como versión de la app (`0.2` → `0.2.0`).
-3. Publica el release con ese tag y le adjunta los 10 instaladores sueltos, sin zip: DMG de macOS (Apple Silicon e Intel), instaladores de Windows (x64 y ARM64) y AppImage, .deb y .rpm de Linux (x64 y ARM64).
+2. Ejecuta los cuatro builds (**Build macOS**, **Build Windows**, **Build Linux** y **Build Android**) sobre el último commit del PR, con ese número como versión de la app (`0.2` → `0.2.0`).
+3. Publica el release con ese tag y le adjunta los 12 instaladores sueltos, sin zip: DMG de macOS (Apple Silicon e Intel), instaladores de Windows (x64 y ARM64), AppImage, .deb y .rpm de Linux (x64 y ARM64) y APK de Android (arm64 y armv7).
 
-   Cada instalador empieza con el sistema al que va dirigido y termina con la arquitectura, por ejemplo `macOS-Kapta-Descargador-0.3.0-arm64.dmg`, `Windows-Kapta-Descargador-Setup-0.3.0-x64.exe` o `Linux-Kapta-Descargador-0.3.0-x86_64.AppImage`.
+   Cada instalador empieza con el sistema al que va dirigido y termina con la arquitectura, por ejemplo `macOS-Kapta-Descargador-0.3.0-arm64.dmg`, `Windows-Kapta-Descargador-Setup-0.3.0-x64.exe`, `Linux-Kapta-Descargador-0.3.0-x86_64.AppImage` o `Android-Kapta-Descargador-0.3.0-arm64.apk`.
 
 Un push nuevo al mismo PR vuelve a compilar, reemplaza los instaladores de ese release y mueve el tag al último commit. Si algún build falla, el número queda reservado (como borrador) y se publica cuando el PR vuelva a compilar bien. Los PR desde forks solo compilan: no reciben tag ni release. "Latest" queda siempre en el número más alto, aunque se actualice un PR anterior, y volver a ejecutar una corrida vieja no regresa el release a un commit anterior.
 
 Si GitHub rechaza crear o mover el tag con el token del workflow (puede pasar en PRs que modifican `.github/workflows`), crea un token fine-grained solo para este repo con *Contents* y *Workflows* en *Read and write* y guárdalo como secret `RELEASE_TOKEN`. Mantén desactivado *Immutable releases* (Settings → General → Releases): con él activo, un release publicado ya no acepta instaladores nuevos.
 
-Los tres workflows de build también se pueden lanzar a mano (pestaña *Actions* → *Run workflow*); así dejan los instaladores como artefactos de la ejecución, sin release.
+Los cuatro workflows de build también se pueden lanzar a mano (pestaña *Actions* → *Run workflow*); así dejan los instaladores como artefactos de la ejecución, sin release.
 
 ### Windows
 
@@ -286,16 +322,31 @@ El instalador es NSIS por usuario: no pide permisos de administrador y crea acce
 
 FFmpeg se incluye en su compilación GPL; ver `THIRD_PARTY_NOTICES.md`.
 
+### Android
+
+- Dos APK: `-arm64.apk` (casi todos los teléfonos) y `-armv7.apk` (32 bits). Desde **Android 10**. No se publica en Google Play, cuyas políticas no permiten descargadores de YouTube; se instala desde el release (ver [Android](#android)).
+- **Firma**: Android solo deja actualizar una app si la versión nueva está firmada con la misma llave. Por eso un release publicado exige la llave en los secrets del repo; sin ella el workflow falla (los PR desde forks y las ejecuciones a mano compilan con una llave de depuración, solo para probar). Para crearla, una sola vez:
+
+  ```bash
+  keytool -genkeypair -v -keystore kapta-release.jks -alias kapta -keyalg RSA -keysize 4096 -validity 10000
+  base64 -w0 kapta-release.jks > kapta-release.jks.b64   # en macOS: base64 -i kapta-release.jks -o kapta-release.jks.b64
+  ```
+
+  Guarda en *Settings → Secrets and variables → Actions*: `ANDROID_KEYSTORE_BASE64` (el contenido de `kapta-release.jks.b64`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`kapta`) y `ANDROID_KEY_PASSWORD` (si es la misma contraseña, puedes omitirlo). **Respalda `kapta-release.jks` y sus contraseñas fuera del repo**: si se pierde, los usuarios tendrán que desinstalar la app para instalar las versiones nuevas.
+- Sin un equipo con el Android SDK, usa el workflow **Build Android** (pestaña *Actions* → *Build Android* → *Run workflow*): compila en `ubuntu-latest` y deja cada APK como un artefacto propio (`Kapta-Descargador-Android-arm64` y `Kapta-Descargador-Android-armv7`).
+
 ## Licencia
 
-El código de Kapta Descargador se distribuye bajo la licencia MIT (ver `LICENSE`). Los componentes de terceros que incluyen los instaladores (yt-dlp, FFmpeg, Electron, React) conservan sus propias licencias; ver `THIRD_PARTY_NOTICES.md`.
+El código de Kapta Descargador se distribuye bajo la licencia MIT (ver `LICENSE`). Los componentes de terceros que incluyen los instaladores (yt-dlp, FFmpeg, Electron, React y, en Android, Capacitor, youtubedl-android, Python y QuickJS) conservan sus propias licencias; ver `THIRD_PARTY_NOTICES.md`.
 
 ## Estructura
 
 ```
 src/main/        proceso principal: yt-dlp, FFmpeg, cola, historial, IPC
 src/preload/     API segura expuesta al renderer (window.api)
-src/renderer/    interfaz React
+src/renderer/    interfaz React (la misma en escritorio y Android)
+src/mobile/      entrada de la interfaz en Android y window.api sobre el plugin nativo
 src/shared/      tipos compartidos
+android/         proyecto Android (Capacitor): plugin, motor, cola y servicio de descargas en Kotlin
 scripts/         descarga de binarios e íconos
 ```

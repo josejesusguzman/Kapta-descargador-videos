@@ -1,4 +1,4 @@
-# Cada PR a main compila los instaladores de macOS, Windows y Linux (los tres workflows build-*.yml) y los
+# Cada PR a main compila los instaladores de macOS, Windows, Linux y Android (los workflows build-*.yml) y los
 # publica en un release con el siguiente número de tag (0.1 → 0.2 → … → 0.10). Un release por PR: cada push
 # nuevo al PR vuelve a compilar, reemplaza los instaladores y mueve el tag al último commit.
 name: PR a main
@@ -124,9 +124,20 @@ jobs:
       version: ${{ needs.version.outputs.version }}
       ref: ${{ github.event.pull_request.head.sha }}
 
+  android:
+    name: Android
+    needs: version
+    uses: ./.github/workflows/build-android.yml
+    # La llave de firma de los APK está en los secrets del repo.
+    secrets: inherit
+    with:
+      version: ${{ needs.version.outputs.version }}
+      ref: ${{ github.event.pull_request.head.sha }}
+      require-signing: ${{ needs.version.outputs.publish == 'true' }}
+
   release:
     name: Release
-    needs: [version, mac, win, linux]
+    needs: [version, mac, win, linux, android]
     if: needs.version.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -155,7 +166,7 @@ jobs:
           shopt -s nullglob
           files=(installers/*)
           bad=0
-          [ "${#files[@]}" -eq 10 ] || { echo "::error::Se esperaban 10 instaladores y hay ${#files[@]}"; bad=1; }
+          [ "${#files[@]}" -eq 12 ] || { echo "::error::Se esperaban 12 instaladores y hay ${#files[@]}"; bad=1; }
           for f in "${files[@]}"; do
             [[ $f == *"-$VERSION-"* ]] || { echo "::error::$f no lleva la versión $VERSION"; bad=1; }
           done
@@ -203,6 +214,8 @@ jobs:
               *-arm64.AppImage) echo '08|Linux ARM64 · AppImage (cualquier distro)' ;;
               *-arm64.deb) echo '09|Linux ARM64 · .deb (Debian, Ubuntu, Mint)' ;;
               *-aarch64.rpm) echo '10|Linux ARM64 · .rpm (Fedora, openSUSE)' ;;
+              *-arm64.apk) echo '11|Android · la mayoría de teléfonos (arm64)' ;;
+              *-armv7.apk) echo '12|Android · teléfonos de 32 bits (armv7)' ;;
               *) echo '99|Otro' ;;
             esac
           }

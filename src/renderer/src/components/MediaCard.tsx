@@ -14,7 +14,8 @@ interface Props {
   onEditorCompatible(v: boolean): void
   onDownload(): void
   outputDir: string
-  onChooseFolder(): void
+  /** Sin `onChooseFolder` (Android) la carpeta es fija y no hay botón "Cambiar". */
+  onChooseFolder?(): void
 }
 
 const AUDIO_FORMATS: { id: AudioFormat; label: string; hint: string }[] = [
@@ -51,8 +52,8 @@ export function MediaCard(p: Props) {
   const meta = [platformLabel(media.platform), media.uploader, formatDuration(media.duration)].filter(Boolean)
 
   return (
-    <section className="flex gap-5 rounded-2xl border border-line bg-surface p-4">
-      <div className="relative aspect-video w-[260px] shrink-0 overflow-hidden rounded-xl bg-raised">
+    <section className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:gap-5">
+      <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-raised sm:w-[260px]">
         {media.thumbnail ? (
           <img src={media.thumbnail} alt="" className="h-full w-full object-cover" draggable={false} />
         ) : (
@@ -113,15 +114,17 @@ export function MediaCard(p: Props) {
           <span className="min-w-0 truncate font-semibold" title={p.outputDir}>
             {shortPath(p.outputDir)}
           </span>
-          <button
-            onClick={p.onChooseFolder}
-            className="shrink-0 rounded-lg border border-line px-2.5 py-1 font-semibold text-ink transition-colors hover:border-accent/60"
-          >
-            Cambiar
-          </button>
+          {p.onChooseFolder && (
+            <button
+              onClick={p.onChooseFolder}
+              className="shrink-0 rounded-lg border border-line px-2.5 py-1 font-semibold text-ink transition-colors hover:border-accent/60"
+            >
+              Cambiar
+            </button>
+          )}
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-4 pt-4">
+        <div className="mt-auto flex flex-col items-stretch gap-4 pt-4 sm:flex-row sm:items-end sm:justify-between">
           {p.mode === 'video' ? (
             <label className="flex cursor-pointer items-start gap-2.5 text-[13px]" title="Convierte el video a H.264 solo si hace falta, para que CapCut y otros editores lo importen sin problemas.">
               <input
@@ -142,7 +145,7 @@ export function MediaCard(p: Props) {
           )}
           <button
             onClick={p.onDownload}
-            className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-accent px-6 text-[15px] font-semibold text-white shadow-[0_6px_20px_-6px_rgba(255,91,58,0.6)] transition-colors hover:bg-accent-hover"
+            className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-[15px] font-semibold text-white shadow-[0_6px_20px_-6px_rgba(255,91,58,0.6)] transition-colors hover:bg-accent-hover"
           >
             <DownloadIcon size={18} />
             Descargar
@@ -155,8 +158,8 @@ export function MediaCard(p: Props) {
 
 export function MediaSkeleton() {
   return (
-    <section className="flex animate-pulse gap-5 rounded-2xl border border-line bg-surface p-4" aria-busy="true" aria-label="Buscando video">
-      <div className="aspect-video w-[260px] shrink-0 rounded-xl bg-raised" />
+    <section className="flex animate-pulse flex-col gap-4 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:gap-5" aria-busy="true" aria-label="Buscando video">
+      <div className="aspect-video w-full shrink-0 rounded-xl bg-raised sm:w-[260px]" />
       <div className="flex flex-1 flex-col gap-3 pt-1">
         <div className="h-4 w-3/4 rounded bg-raised" />
         <div className="h-3 w-1/3 rounded bg-raised" />

@@ -53,6 +53,8 @@ export interface Job {
   eta?: number
   filePath?: string
   error?: string
+  /** Solo Android: el sitio pidió iniciar sesión (clave como 'youtube'); la UI ofrece hacerlo y reintentar. */
+  loginSite?: string
   createdAt: number
 }
 
@@ -99,9 +101,17 @@ export interface EngineUpdateResult {
   version?: string
 }
 
-/** API expuesta al renderer por el preload (window.api). */
+/** Error de `analyze` cuando el sitio pide iniciar sesión (solo Android). */
+export interface LoginRequiredError extends Error {
+  loginSite?: string
+}
+
+/**
+ * API expuesta al renderer: el preload en escritorio (window.api) y src/mobile/api.ts en Android.
+ * Los métodos opcionales solo existen donde tienen sentido (en Android no hay carpetas ni arrastre).
+ */
 export interface KaptaDescargadorApi {
-  /** Sistema operativo (process.platform): 'win32', 'darwin'… */
+  /** Sistema operativo (process.platform): 'win32', 'darwin'…, o 'android'. */
   platform: string
   analyze(url: string): Promise<MediaInfo>
   addJob(request: DownloadRequest): Promise<Job>
@@ -118,12 +128,12 @@ export interface KaptaDescargadorApi {
 
   getSettings(): Promise<Settings>
   setSettings(patch: Partial<Settings>): Promise<Settings>
-  chooseFolder(): Promise<string | null>
+  chooseFolder?(): Promise<string | null>
 
-  showInFolder(filePath: string): Promise<void>
+  showInFolder?(filePath: string): Promise<void>
   openFile(filePath: string): Promise<void>
-  openOutputDir(): Promise<void>
-  startDrag(filePath: string): void
+  openOutputDir?(): Promise<void>
+  startDrag?(filePath: string): void
 
   readClipboardUrl(): Promise<string | null>
   onCommand(callback: (command: AppCommand) => void): () => void
@@ -133,4 +143,10 @@ export interface KaptaDescargadorApi {
   engineInfo(): Promise<EngineInfo>
   updateEngine(): Promise<EngineUpdateResult>
   appVersion(): Promise<string>
+
+  /** Solo Android: abre el inicio de sesión del sitio; true si quedó una sesión guardada. */
+  login?(site: string): Promise<boolean>
+  logout?(site: string): Promise<void>
+  /** Sitios con sesión guardada. */
+  listLogins?(): Promise<string[]>
 }

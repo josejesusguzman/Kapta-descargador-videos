@@ -1,0 +1,11 @@
+/* Android: la app dibuja detrás de la barra de estado y de navegación; el contenido respeta esas áreas. */
+#root {
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Sin resaltado azul al tocar ni menú de "copiar" al mantener presionado. */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}

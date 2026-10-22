@@ -23,9 +23,16 @@
     "build:mac:x64": "node scripts/fetch-binaries.mjs --platform=mac --arch=x64 && npm run typecheck && electron-vite build && electron-builder --mac dmg --x64 --config electron-builder.yml --publish never",
     "build:linux": "npm run build:linux:x64",
     "build:linux:x64": "node scripts/fetch-binaries.mjs --platform=linux --arch=x64 && npm run typecheck && electron-vite build && electron-builder --linux AppImage deb rpm --x64 --config electron-builder.yml --publish never",
-    "build:linux:arm64": "node scripts/fetch-binaries.mjs --platform=linux --arch=arm64 && npm run typecheck && electron-vite build && electron-builder --linux AppImage deb rpm --arm64 --config electron-builder.yml --publish never"
+    "build:linux:arm64": "node scripts/fetch-binaries.mjs --platform=linux --arch=arm64 && npm run typecheck && electron-vite build && electron-builder --linux AppImage deb rpm --arm64 --config electron-builder.yml --publish never",
+    "build:mobile": "vite build -c vite.mobile.config.ts",
+    "android:sync": "npm run build:mobile && cap sync android",
+    "build:android": "npm run typecheck && npm run android:sync && cd android && ./gradlew --no-daemon testReleaseUnitTest assembleRelease"
   },
   "devDependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.0.0",
     "@types/react": "^19.3.0",

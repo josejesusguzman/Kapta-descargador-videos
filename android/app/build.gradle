@@ -1,0 +1,98 @@
+import groovy.json.JsonSlurper
+
+apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+// La versión sale de package.json (CI la fija con `npm version` al número del release): 0.12.0 → versionCode 1200.
+def appVersion = new JsonSlurper().parse(file('../../package.json')).version
+def (vMajor, vMinor, vPatch) = appVersion.tokenize('.-')[0..2].collect { it.toInteger() }
+
+// Firma del release: keystore en variables de entorno (en CI vienen de los secrets ANDROID_*). Sin keystore se firma
+// con la llave de depuración, que sirve para probar pero no para actualizar una instalación firmada con la real.
+def keystorePath = System.getenv('KAPTA_KEYSTORE')
+def hasReleaseKey = keystorePath && file(keystorePath).exists()
+
+android {
+    namespace = "com.kapta.descargador"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.kapta.descargador"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode vMajor * 10000 + vMinor * 100 + vPatch
+        versionName appVersion
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile file(keystorePath)
+                storePassword System.getenv('KAPTA_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KAPTA_KEY_ALIAS')
+                keyPassword System.getenv('KAPTA_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+    // Un APK por arquitectura: Python y FFmpeg pesan mucho y youtubedl-android solo trae FFmpeg para ARM.
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a'
+            universalApk false
+        }
+    }
+    // youtubedl-android ejecuta Python y FFmpeg desde nativeLibraryDir: tienen que quedar extraídos al instalar.
+    packaging {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+}
+
+kotlin {
+    jvmToolchain(21)
+}
+
+// Android-Kapta-Descargador-0.12.0-arm64.apk / -armv7.apk, como los instaladores de escritorio.
+android.applicationVariants.configureEach { variant ->
+    variant.outputs.configureEach { output ->
+        def abi = output.getFilter(com.android.build.OutputFile.ABI)
+        def label = abi == 'arm64-v8a' ? 'arm64' : abi == 'armeabi-v7a' ? 'armv7' : (abi ?: 'universal')
+        outputFileName = "Android-Kapta-Descargador-${variant.versionName}-${label}${variant.buildType.name == 'release' ? '' : '-' + variant.buildType.name}.apk"
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    // yt-dlp con Python, QuickJS (retos de JavaScript de YouTube) y FFmpeg para Android.
+    implementation "io.github.junkfood02.youtubedl-android:library:$youtubedlAndroidVersion"
+    implementation "io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroidVersion"
+    testImplementation "junit:junit:$junitVersion"
+    // Las pruebas de la JVM no tienen el org.json de Android.
+    testImplementation "org.json:json:20250517"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
